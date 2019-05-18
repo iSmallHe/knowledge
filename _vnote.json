@@ -41,6 +41,9 @@
         },
         {
             "name": "rabbitMQ"
+        },
+        {
+            "name": "Mybatis"
         }
     ],
     "tags": [
