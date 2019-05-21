@@ -22,8 +22,8 @@ select查询的序列号，包含一组数字，表示查询中执行select子�
 <font color="#43CD80">**system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > range > index > ALL**</font>
   
 1. <font color="#FFA500">system</font>：<font color="#43CD80">表中只有一行记录，这是const类型的特例。</font>
-2. <font color="#FFA500">const</font>：<font color="#43CD80">表示通过索引一次就找到了，const一般用于主键或者unique索引。</font>
-3. <font color="#FFA500">eq_ref</font>：<font color="#43CD80">唯一性索引扫描，对于每个索引键，表中只有一条记录与之匹配。常见于主键或者unique索引</font>
+2. <font color="#FFA500">const</font>：<font color="#43CD80">表示通过索引一次就找到了，const一般用于主键或者unique索引的所有部分与常量值进行比较。</font>
+3. <font color="#FFA500">eq_ref</font>：<font color="#43CD80">唯一性索引扫描，对于每个索引键，表中只有一条记录与之匹配。常见于主键或者unique索引。eq_ref可用于使用=运算符比较的索引列，比较值可以是常量或者使用此表之前读取的表中的列的表达式。eq_ref多见于连表查询中。</font>
 4. <font color="#FFA500">ref</font>：<font color="#43CD80">非唯一性索引扫描，返回匹配某个单独值的所有行</font>
 5. <font color="#FFA500">range</font>：<font color="#43CD80">只检索给定范围的行，使用一个索引来选择行</font>
 6. <font color="#FFA500">index</font>：<font color="#43CD80">index也是读全表，index和ALL的区别在于index类型只遍历索引树。</font>
