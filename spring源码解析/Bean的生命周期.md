@@ -1,0 +1,22 @@
+# Bean的生命周期
+bean整个生成到死亡的过程：  
+
+1. 实例化bean对象
+2. 注入bean中依赖的属性
+3. 如果bean实现了BeanNameAware接口，则会调用setBeanName(String name)方法，设置bean的名称
+4. 如果bean实现了BeanFactoryAware接口，则会调用setBeanFactory(BeanFactory beanFactory)方法，设置管理bean的工厂，后续getBean的时候则从此BeanFactory中获取
+5. 如果bean实现了BeanApplicationContext接口，则会调用setApplicationContext(ApplicationContext applicationContext)方法，传入Spring上下文
+6. 如果bean关联了BeanPostProcessor接口，则在初始化前会调用postProcessBeforeInitialization(Object bean,String beanName)
+7. 如果bean的配置中设置了init-method属性，则此时会调用初始化方法
+8. 如果bean关联了BeanPostProcessor接口，则在初始化完成后会调用postProcessAfterInitialization(Object bean,String beanName)
+9. 当bean不再被需要的时候，则会经历清理阶段，如果bean实现了DisposableBean接口，则会此时会调用destroy方法
+10. 最后，如果bean在配置的时候设置了destroy-method属性，则会调用该方法。
+
+# SpringMVC执行流程
+
+1. 用户向服务器发送请求，请求被SpringMVC的前端控制器DispatcherServlet拦截
+2. DispatcherServlet对请求地址进行解析，调用HandlerMapping获取到对应的处理器handler，以及handler对应的拦截器，这些对象都会封装到HandlerExecutionChain对象中
+3. DispatcherServlet对象根据获取的handler，选择一个合适的HandlerAdapter，HandlerAdapter处理一系列的操作，如：参数封装，数据格式转换，数据验证等操作
+4. 执行处理handler，返回ModelAndView
+5. HandlerAdapter将ModelAndView传给DispatcherServlet，DispatcherServlet再传给ViewResolver解析，返回具体的view
+6. DispatcherServlet再进行view渲染（将model中的数据填充至view中），返回给前端。
