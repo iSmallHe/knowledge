@@ -50,6 +50,15 @@
         },
         {
             "name": "重构代码"
+        },
+        {
+            "name": "RocketMQ"
+        },
+        {
+            "name": "架构探险"
+        },
+        {
+            "name": "http"
         }
     ],
     "tags": [
