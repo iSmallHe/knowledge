@@ -59,6 +59,9 @@
         },
         {
             "name": "http"
+        },
+        {
+            "name": "git"
         }
     ],
     "tags": [
