@@ -1,5 +1,6 @@
 # explain详解
 <img src="../image/explain.png" width="100%"/>
+
 ## 1  id
 select查询的序列号，包含一组数字，表示查询中执行select子句或操作表的顺序 
 三种情况：   
