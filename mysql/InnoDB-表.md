@@ -33,14 +33,14 @@ Compact格式的特点:一个页中存放的行数据越多，其性能越高。
 1. 变长字段长度列表：按照列的顺序逆序放置，其长度小于255字节，则长度用1字节表示，超过255字节，则用2字节表示。变长字段的长度不能大于2字节，因为varchar类型的最大长度为2^16-1=65535。
 2. NULL标志位：该位指示了该行数据中是否存在NULL值，有则用1表示，占用1字节。
 3. 记录头信息：固定占用5字节，含义如下图：
-![](../image/Compact记录头信息.png =837x)
+![](../image/Compact记录头信息.png)
 4. 最后的部分就是存储每列的数据。需要注意的是：NULL不占用该部分任何空间，即NULL除了占有NULL标志位，实际存储不占有任何空间。
 5. 除了用户创建的列，还有两个隐藏列：事务id列，回滚指针列，分别占用6字节，7字节。若InnoDB表没有设置主键，每行还会增加一个6字节的rowid列。
 ### 1.3.2 Redundant行记录格式
-![](../image/Redundant行记录格式.png =760x)
-![](../image/Redundant记录头信息.png =802x)
+![](../image/Redundant行记录格式.png)
+![](../image/Redundant记录头信息.png)
 ### 1.3.3 新的行记录存储格式
-![](../image/Compressed-Barracuda.png =801x)
+![](../image/Compressed-Barracuda.png)
 ### 1.3.4 char的行结构存储
 char所指的固定长度，不是指字节长度，而是字符的长度。
 
@@ -55,14 +55,14 @@ mysql数据库支持的分区类型：
 不论创建何种类型的分区，如果表中存在主键或者唯一索引，分区列必须是唯一索引的一个组成部分。
 ```
 ## 2.1 range分区
-![](../image/range分区.png =813x)
+![](../image/range分区.png)
 ## 2.2 list分区
-![](../image/list分区.png =814x)
+![](../image/list分区.png)
 ## 2.3 hash分区
 在range，list分区模式中，必须明确指定一个给定的列值或列值集合应该保存在哪个分区中；而在hash分区中，msyql将自动完成这些工作，用户索要做的就是基于将要进行hash分区的列指定一个列值或表达式，以及指定分区数量。如果没有指定分区数量，则默认为1。
-![](../image/hash分区.png =464x)
+![](../image/hash分区.png)
 ## 2.4 key分区
-![](../image/key分区.png =818x)
+![](../image/key分区.png)
 
 ## 2.5 columns分区
 range，list，hash，key分区都是基于整数数据，如果不是整型，则需要转换为整型数据。columns分区可以使用非整型数据来分区。支持的类型：
