@@ -1,6 +1,9 @@
 # tomcat9
-**本次tomcat源码版本为：9.0.31**
-## 1  tomcat9启动流程
+**本次tomcat源码版本为：9.0.31**  
+
+## 1  tomcat9启动流程  
+
+![title](../image/tomcat9关键类层次结构.png)
 ### 1.1 执行BootStrap类的main方法
 1. BootStrap类是启动类，会进行初始化，执行static代码块内容，主要为属性catalinaHomeFile,catalinaBaseFile赋值为项目的根目录(System.getProperty("user.dir"));
 2. 执行main方法，创建BootStrap对象，并执行bootstrap.init()方法
