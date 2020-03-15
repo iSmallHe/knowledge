@@ -233,7 +233,7 @@ Bootstrap类的main方法启动tomcat
     2. 执行catalina.load()方法
         1. 执行initDirs方法，执行initNaming，初始化java系统属性
         2. ConfigFileLoader设置资源，获取配置文件（conf/server.xml）
-        3. 创建Degiser类，解析server.xml文件，注意catalina.createStartDigester方法中的`digester.addRuleSet(new HostRuleSet("Server/Service/Engine/"));`。此处会为容器Host添加生命周期监听器HostConfig类，用来部署项目。
+        3. 创建Degiser类，解析server.xml文件，注意catalina.createStartDigester方法中的`digester.addRuleSet(new HostRuleSet("Server/Service/Engine/"));`。此处会为容器Host添加生命周期监听器HostConfig类，用来部署项目。`digester.addRule("Server/Service/Connector",new ConnectorCreateRule());`,此处添加的Rule，会创建Connector类，在connector对象start启动后，Connector接受http请求，经过一系列复杂的操作会执行Engine的pipeline的过程。`digester.addRuleSet(new ContextRuleSet("Server/Service/Engine/Host/"));`，此处添加的Rule，会创建给StandardContext对象注入ContextConfig对象，而ContextConfig对象会加载解析WEB-INF/web.xml文件。
         4. 解析完成后，会根据配置生成Server，Service，Connector，Engine，Host，Valve等等对象
         5. Server对象设置catalina，catalinaHome，catalinaBase属性
         6. catalina.initStreams()：设置系统输出对象
@@ -320,4 +320,16 @@ Bootstrap类的main方法启动tomcat
     }
 ```
 6. 调用getServer().start()--service.start--engine.start--host.start
+
+## HostConfig
+此类属于监听器，在事件START_EVENT时，会去部署war包，生成StandardContext对象，并添加ContextConfig监听器
+
+## ContextConfig
+此类属于监听器，在事件START_EVENT时，解析WEB-INF/web.xml文件
+
+## ContainerBackgroundProcessorMonitor
+ContainerBackgroundProcessorMonitor会在start事件中放入周期性执行器中定时执行：调用ContainerBackgroundProcessor定时执行任务：
+* 部署项目
+* 过期Session处理
+* 其他任务
 

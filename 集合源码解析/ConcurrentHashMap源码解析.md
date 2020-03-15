@@ -1,5 +1,20 @@
 # 1. ConcurrentHashMap源码解析
-##HashMap主要用于单线程或者无竞争下使用，ConcurrentHashMap主要用于多线程下，属于线程安全类。
+>HashMap主要用于单线程或者无竞争下使用，ConcurrentHashMap主要用于多线程下，属于线程安全类。  
+## ConcurrentHashMap类层次结构
+![title](../image/ConcurrentHashMap类层次结构.png)  
+
+## ConcurrentHashMap属性
+|name|value|description|
+|---|---|---|
+|MOVED|-1|用于判断当前是否处于迁移状态|
+|TREEBIN|-2|表示该节点为红黑树节点|
+|RESERVED|-3||
+|HASH_BITS|0x7fffffff||
+|TREEIFY_THRESHOLD|8|用于判断链表转换红黑树|
+|sizeCtl|-1/init/迁移标志/other|-1：表示正在初始化table；  init：构造器初始化table的长度，暂存在sizeCtl中；  ‘迁移标志’：此时的sizeCtl由高16位1<<15+数组长度n的最高位之前的0的个数值,和低16位1+1(启动迁移线程)+协助线程数组成；  other：表示初始化的table长度值|
+|transferIndex|[0,table.length]|transferIndex表示table下的[0,transferIndex-1]处的slot还未迁移|
+|baseCount||表示map的长度，但不是准确值，准确值应当是baseCount加上所有CounterCell中的value值，才表示当前时刻ConcurrentHashMap的size大小|
+
 ## 插入节点分析putVal
 ``` java
 final V putVal(K key, V value, boolean onlyIfAbsent) {
@@ -17,21 +32,21 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
             tab = initTable();
         //tab已初始化，判断当前待插入节点的slot下是否没有节点
         else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
-            //如果没有节点，则以CAS的方式将该节点放置在数组的i下标下，如果不成功，说明有其他节点已经放置进去了，继续后面的逻辑
+            //如果没有节点，则以CAS的方式将该节点放置在数组的i下标下，如果不成功，说明有其他节点已经放置进去了，此时重新回到for循环处，执行插入动作
             if (casTabAt(tab, i, null,
                          new Node<K,V>(hash, key, value, null)))
                 break;                   // no lock when adding to empty bin
         }
         //判断当前slot是否处于迁移状态（即扩容后，节点需要迁移）
         else if ((fh = f.hash) == MOVED)
-            //如果当前节点处于迁移状态，则当前线程应当辅助整个迁移过程
+            //如果当前节点处于迁移状态，则当前线程应当辅助整个迁移过程，待迁移完成后，重新回到for循环处，执行插入动作
             tab = helpTransfer(tab, f);
         //当前slot下有节点且未处于迁移状态，则直接查看当前slot下是否有相同key，如果有相同key，则处理替换，没有，则直接插入
         else {
             V oldVal = null;
             //此时应当锁住第一个节点，防止其他线程同时修改当前slot下的节点
             synchronized (f) {
-                //再次判断当前首节点是否是我们之前的首节点，不是的话，则可退出，重新进入for循环中，进行相应的判断
+                //再次判断当前首节点是否是我们之前的首节点，不是的话，则表示其他线程修改过，需重新进入for循环中，执行插入动作
                 if (tabAt(tab, i) == f) {
                     //首先判断首节点的hash值，如果当前slot下已经转换为红黑树结构，则该slot下存储的会是TreeBin对象，该对象hash值TREEBIN   = -2;hash值大于等于0，则表示该slot下还是链表结构，则进行相应的操作
                     if (fh >= 0) {
@@ -71,11 +86,12 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
                     }
                 }
             }
-            //如果binCount值仍然是0，则表示首节点被替换，跳过该步骤
+            //如果binCount值不为0，则表示节点已经插入成功，需要判断是否将链表结构转换为红黑树结构
             if (binCount != 0) {
-                //如果binCount超过TREEIFY_THRESHOLD = 8，则将该slot下节点进行转换为红黑树结构
+                //如果binCount超过TREEIFY_THRESHOLD = 8，即表示链表长度超过8，应将该slot下节点进行转换为红黑树结构
                 if (binCount >= TREEIFY_THRESHOLD)
                     treeifyBin(tab, i);
+                //如果oldVal !=null 则表示有相同key节点，长度不变，无需进行后面的addCount动作。
                 if (oldVal != null)
                     return oldVal;
                 break;
@@ -93,7 +109,7 @@ private final Node<K,V>[] initTable() {
         Node<K,V>[] tab; int sc;
         //循环处理，判断tab是否未初始化
         while ((tab = table) == null || tab.length == 0) {
-            如果sizeCrl小于0，则表示其他线程正在初始化，线程让步，等待其他线程处理完成
+            //如果sizeCrl小于0，则表示其他线程正在初始化，线程让步，等待其他线程处理完成
             if ((sc = sizeCtl) < 0)
                 Thread.yield(); // lost initialization race; just spin
             //如果没有其他线程处理初始化，则CAS替换SIZECTL=-1
@@ -124,6 +140,7 @@ private final Node<K,V>[] initTable() {
 private final void addCount(long x, int check) {
     //此处是增加统计数量
     CounterCell[] as; long b, s;
+    //counterCells不为空，且baseCount并发修改失败时
     if ((as = counterCells) != null ||
         !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
         CounterCell a; long v; int m;
@@ -132,9 +149,11 @@ private final void addCount(long x, int check) {
             (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
             !(uncontended =
               U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
+            //counterCells未初始化/当前线程没有对应的CouterCell时/当前线程对应的的CounterCell并发修改失败的情况下，执行后续的逻辑
             fullAddCount(x, uncontended);
             return;
         }
+        //表示当前属于链表阶段的初始阶段（即该插入的节点，在slot下的链表长度最大为2），无需进行扩容迁移
         if (check <= 1)
             return;
         //获取总数量
@@ -142,13 +161,19 @@ private final void addCount(long x, int check) {
     }
     if (check >= 0) {
         Node<K,V>[] tab, nt; int n, sc;
-        //此处用于重复迁移工作
+        //此处用于自旋处理迁移工作
         while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
                (n = tab.length) < MAXIMUM_CAPACITY) {
-            //1<<15+n不为0的个数
+            //1<<15+n中最高位1前不为0的个数
             int rs = resizeStamp(n);
-            //sc(SIZECTL)小于0，则表示在初始化或者扩容
+            //sc(SIZECTL)小于0，则表示在初始化(由于上面判断了table!=null，则表示不是初始化阶段)或者扩容
             if (sc < 0) {
+                //code3
+                //(sc >>> RESIZE_STAMP_SHIFT) != rs  : 此处表示已经不再是迁移阶段了，故此无需进行后续的迁移操作
+                //sc == rs + 1 ：此处表示所有线程都已完成迁移工作。迁移的起点sc==rs+2，当每个线程加入处理时sc+1，线程迁移完成后，sc-1，所以当最后的线程处理完后，sc==rs+1，此时无需再进行迁移操作了
+                //sc == rs + MAX_RESIZERS ：此处表示一起处理迁移的线程数量超过最大限制，后续线程无需再协助迁移
+                //(nt = nextTable) == null ：此处时由于当迁移工作完成后，nextTable会重置null，所以，此时也无需进行迁移工作
+                //transferIndex <= 0 ：此处表示待迁移的slot都已分配完成，所以也无需去协助迁移工作
                 if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                     sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
                     transferIndex <= 0)
@@ -167,14 +192,149 @@ private final void addCount(long x, int check) {
     }
 }
 ```
+
+## 并发计数CounterCell
+```java
+// See LongAdder version for explanation
+    private final void fullAddCount(long x, boolean wasUncontended) {
+        int h;
+        if ((h = ThreadLocalRandom.getProbe()) == 0) {
+            //初始化当前线程的Seed，probe
+            ThreadLocalRandom.localInit();      // force initialization
+            h = ThreadLocalRandom.getProbe();
+            wasUncontended = true;
+        }
+        boolean collide = false;                // True if last slot nonempty
+        for (;;) {
+            CounterCell[] as; CounterCell a; int n; long v;
+            //并发计数器 数组已经初始化
+            if ((as = counterCells) != null && (n = as.length) > 0) {
+                //由于并发计数器数组的长度仍然是2^n，所以采用这种方式查找下标
+                //当前下标处没有计数器
+                if ((a = as[(n - 1) & h]) == null) {
+                    //再判断当前是否未处于并发期
+                    if (cellsBusy == 0) {            // Try to attach new Cell
+                        //此时已表明位处于并发起，直接创建计数器CounterCell
+                        CounterCell r = new CounterCell(x); // Optimistic create
+                        //设定标志位，防止并发修改
+                        if (cellsBusy == 0 &&
+                            U.compareAndSwapInt(this, CELLSBUSY, 0, 1)) {
+                            boolean created = false;
+                            try {               // Recheck under lock
+                                CounterCell[] rs; int m, j;
+                                //此时二次判断是否可以插入计数器
+                                if ((rs = counterCells) != null &&
+                                    (m = rs.length) > 0 &&
+                                    rs[j = (m - 1) & h] == null) {
+                                    rs[j] = r;
+                                    created = true;
+                                }
+                            } finally {
+                                cellsBusy = 0;
+                            }
+                            //创建成功后，跳出for
+                            if (created)
+                                break;
+                            continue;           // Slot is now non-empty
+                        }
+                    }
+                    collide = false;
+                }
+                //数组在当前下标下有计数器，且有其他线程竞争修改，则会执行到code2处，重新生成probe
+                else if (!wasUncontended)       // CAS already known to fail
+                    wasUncontended = true;      // Continue after rehash
+                //数组在当前下标处有计数器，但是没有竞争（此时只是基于之前的判断），则以CAS方式修改，修改成功，则结束
+                else if (U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))
+                    break;
+                //数组在当前下标处有计数器，但是CAS修改失败，此处判断计数器数组是否已替换了或者数组长度大于cpu个数
+                else if (counterCells != as || n >= NCPU)
+                    collide = false;            // At max size or stale
+                else if (!collide)
+                    collide = true;
+                //修改并发标志位
+                else if (cellsBusy == 0 &&
+                         U.compareAndSwapInt(this, CELLSBUSY, 0, 1)) {
+                    try {
+                        //由于前面修改失败，计数器数组扩容
+                        if (counterCells == as) {// Expand table unless stale
+                            CounterCell[] rs = new CounterCell[n << 1];
+                            for (int i = 0; i < n; ++i)
+                                rs[i] = as[i];
+                            counterCells = rs;
+                        }
+                    } finally {
+                        cellsBusy = 0;
+                    }
+                    collide = false;
+                    //扩容后重新执行计数
+                    continue;                   // Retry with expanded table
+                }
+                //code2
+                h = ThreadLocalRandom.advanceProbe(h);
+            }
+            //表示计数器数组未初始化，设定标志位，防止并发修改
+            else if (cellsBusy == 0 && counterCells == as &&
+                     U.compareAndSwapInt(this, CELLSBUSY, 0, 1)) {
+                boolean init = false;
+                try {                           // Initialize table
+                    if (counterCells == as) {
+                        //初始化的同时，直接生成计数器并设置数量
+                        CounterCell[] rs = new CounterCell[2];
+                        rs[h & 1] = new CounterCell(x);
+                        counterCells = rs;
+                        init = true;
+                    }
+                } finally {
+                    cellsBusy = 0;
+                }
+                if (init)
+                    break;
+            }
+            //此时，表明计数器未初始化，但是有其他线程并发进行初始化动作，所以以CAS执行修改baseCount，成功后退出，若不成功，则再继续之前的逻辑
+            else if (U.compareAndSwapLong(this, BASECOUNT, v = baseCount, v + x))
+                break;                          // Fall back on using base
+        }
+    }
+```
+
+## 协助扩容
+
+```java
+final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
+        Node<K,V>[] nextTab; int sc;
+        //判断当前tab处于迁移状态，主要条件f instanceof ForwardingNode
+        if (tab != null && (f instanceof ForwardingNode) &&
+            (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
+            int rs = resizeStamp(tab.length);
+            //自旋判断是否进入协助扩容
+            while (nextTab == nextTable && table == tab &&
+                   (sc = sizeCtl) < 0) {
+                //此处用于判断是否结束迁移工作了
+                //详细解释：code3
+                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
+                    sc == rs + MAX_RESIZERS || transferIndex <= 0)
+                    break;
+                //并发修改sizeCtl，+1,表示协助修改线程数量+1
+                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
+                    transfer(tab, nextTab);
+                    //修改完成后退出
+                    break;
+                }
+            }
+            return nextTab;
+        }
+        return table;
+    }
+```
+
 ## 扩容+数据迁移transfer
 ```java
 private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
     int n = tab.length, stride;
-    //确定每个线程最小处理数量
+    //确定每个线程最小处理迁移slot的数量
     if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
         stride = MIN_TRANSFER_STRIDE; // subdivide range
-    如果nextTab是null，则初始化
+    //如果nextTab是null，则初始化
     if (nextTab == null) {            // initiating
         try {
             @SuppressWarnings("unchecked")
@@ -201,22 +361,25 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
             //每完成一次slot迁移，i自减，并判断当前是否迁移完成或者是否全部迁移完成
             if (--i >= bound || finishing)
                 advance = false;
-            //迁移分配完成，当前线程已不用进行辅助迁移
+            //待迁移slot全部分配完成，当前线程已不用进行辅助迁移
             else if ((nextIndex = transferIndex) <= 0) {
+                //用于判断-code1-处，查看是否全部迁移完成
                 i = -1;
                 advance = false;
             }
-            //此处划定当前线程应当迁移的数组边界
+            //此时待迁移slot未分配完，划定当前线程应当迁移的slot数组边界
             else if (U.compareAndSwapInt
                      (this, TRANSFERINDEX, nextIndex,
                       nextBound = (nextIndex > stride ?
                                    nextIndex - stride : 0))) {
+                //确定待迁移slot在数组的下标范围[bound,i]
                 bound = nextBound;
                 i = nextIndex - 1;
                 advance = false;
             }
         }
         //判断是否当前迁移完成
+        //code1
         if (i < 0 || i >= n || i + n >= nextn) {
             int sc;
             //如果完成全部迁移
@@ -224,14 +387,14 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
                 //更新table和nextTable属性值
                 nextTable = null;
                 table = nextTab;
-                //sizeCtl设置为当前线程的0.75倍
+                //sizeCtl重新设置为门槛值，即设置为旧table的长度1.5倍，即新table长度的0.75倍
                 sizeCtl = (n << 1) - (n >>> 1);
                 //返回
                 return;
             }
-            //完成当前线程完成迁移后，将sizeCtl的低16位表示的线程数-1
+            //完成当前线程完成迁移且待迁移slot都已分配完，此时，将sizeCtl的低16位表示的线程数-1
             if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
-                //判断是否全部完成迁移
+                //判断是否还有其他线程在帮忙处理迁移工作，如果不相等，则表示还有其他线程在迁移，则直接退出，将结尾工作交付给最后执行迁移的工作线程；如果相等，则表示当前线程需要处理结尾工作，判断是否全部迁移完成。
                 if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
                     //当前线程完成迁移，直接返回
                     return;
@@ -241,7 +404,7 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
                 i = n; // recheck before commit
             }
         }
-        //若是没有超出边界，再此判断当前slot下是否需要迁移
+        //迁移未完成，判断当前slot是否有节点，没有节点则需要fwd以cas的方式放入table中，防止其他线程在当前线程迁移的过程中插入新节点
         else if ((f = tabAt(tab, i)) == null)
             advance = casTabAt(tab, i, null, fwd);
         //如果有节点，再判断是否正在迁移
@@ -351,6 +514,7 @@ public V get(Object key) {
                 return e.val;
         }
         //不是首节点，则判断hash值，小于0则可能是ForwardingNode或者TreeBin
+        //由于table是将该slot下的所有节点迁移到nextTable后才会将首节点设置为ForwardingNode，而ForwardingNode持有nextTable，所以可以调用查找
         else if (eh < 0)
             return (p = e.find(h, key)) != null ? p.val : null;
         //普通链表节点，则直接遍历
@@ -385,7 +549,7 @@ Node<K,V> find(int h, Object k) {
             if (eh < 0) {
                 //如果是ForwardingNode
                 if (e instanceof ForwardingNode) {
-                    //则可能处于上一次迁移时，我们正在查询，而新一次扩容又开始了，所以我们需要重新获取nextTable，然后再去进行后续的查询动作
+                    //则可能处于上一次迁移时，我们正在查询，而新一次扩容又开始了，所以我们需要重新获取nextTable，然后重新执行查询动作
                     tab = ((ForwardingNode<K,V>)e).nextTable;
                     continue outer;
                 }

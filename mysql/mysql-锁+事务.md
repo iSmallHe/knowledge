@@ -33,7 +33,7 @@ InnoDB引擎支持两种一致性锁定读：
 * SELECT ...  LOCK IN SHARE MODE：对读取的行记录加了一个S锁，其他事务可以向被锁定的行加S锁，如果需要X锁，则必须等待释放。
 
 ### 自增长与锁
-![](../image/插入类型.png =824x)
+![](../image/插入类型.png)
 ![](../image/innodb_autoinc_lock_mode说明.png)
 
 ### 外键和锁

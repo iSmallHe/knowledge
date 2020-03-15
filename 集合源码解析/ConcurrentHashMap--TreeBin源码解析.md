@@ -1,9 +1,12 @@
 # ConcurrentHashMap--TreeBin源码解析
-## 关于TreeBin类比较重要的属性：lockState，初始值为0，其它可能值有以下几种情况：
-| 名称   | 10进制 | 2进制 | 描述                                                                                                                                  |
-| :----- | :---: | ---: | :------------------------------------------------------------------------------------------------------------------------------------ |
-| WRITER |   1    | 0001 | 写模式，由于在put，remove操作slot时，都会锁住首节点，所以不会出现写写竞争，主要是读写竞争                                                    |
-| WAITER |   2    | 0010 | 等模式，如果当前模式处于读状态，则当前线程会被park，并且状态为READER + WAITER，直到读线程操作完成后会unpark                                  |
+## TreeBin.lockState
+>关与TreeBin需说明的一点：不会有写并发，因为在ConcurrentHashMap中写的时候已经锁住了首节点，所以TreeBin中只存在读写竞争。  
+>关于TreeBin类比较重要的属性：lockState，初始值为0，其它可能值有以下几种情况：
+
+| 名称 | 10进制 | 2进制 | 描述 |
+| :----- | :---: | :---: | :---- |
+| WRITER |   1    | 0001 | 写模式，由于在put，remove操作slot时，都会锁住首节点，所以不会出现写写竞争，主要是读写竞争  |
+| WAITER |   2    | 0010 | 等模式，如果当前模式处于读状态，则当前线程会被park，并且状态为READER + WAITER，直到读线程操作完成后会unpark  |
 | READER |   4    | 0100 | 读模式，如果已经处于读模式下且无waiter的写线程lockState=n\*READER，可使用红黑树方式遍历，如果是lockState=n\*READER+WAITER，则使用链表方式遍历 |
 
 ## TreeBin(TreeNode(K,V) b)类的构造器，用于初始化红黑树
@@ -119,12 +122,13 @@ final TreeNode<K,V> putTreeVal(int h, K k, V v) {
                 //如果找到相同节点则直接返回
                 else if ((pk = p.key) == k || (pk != null && k.equals(pk)))
                     return p;
-                //若hash值相等，则判断当前节点有没有实现Comparable接口，如果实现该接口，则通过compareTo比较
-                //如果未实现该接口或者，compareTo结果一致，则通过System.identityHashCode(a)方法比较对象的地址，判断节点存放的位置。
+                //hash值与节点一致，key却不相同
+                //此时需判断当前类是否实现了Comparable
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
                          (dir = compareComparables(kc, k, pk)) == 0) {
-                    //在这种情况下，可能出现相同节点的情况，所以在此进行一次遍历查看是否能够找到相同节点，找到后直接返回
+                    //执行到此，说明为实现Comparable接口，或者实现了该接口，但是比较后返回0
+                    //在这种情况下，表明hash冲突比较多，可能出现相同节点的情况，所以在此进行一次遍历查看是否能够找到相同节点，找到后直接返回
                     if (!searched) {
                         TreeNode<K,V> q, ch;
                         searched = true;
@@ -134,6 +138,7 @@ final TreeNode<K,V> putTreeVal(int h, K k, V v) {
                              (q = ch.findTreeNode(h, k, kc)) != null))
                             return q;
                     }
+                    //如果未实现该接口或者compareTo结果一致，则通过System.identityHashCode(a)方法比较对象的地址，判断节点存放的位置。
                     dir = tieBreakOrder(k, pk);
                 }
                 //找到待插入位置时，直接new节点，此时添加是往上添加，将新加入的节点置为first，并新节点的next指向原first节点
@@ -170,7 +175,7 @@ final TreeNode<K,V> putTreeVal(int h, K k, V v) {
 ## private final void lockRoot() 获取写
 ```java
 private final void lockRoot() {
-            //如果lockState不是起始值，则调用contendedLock获取锁
+            //以CAS方式设置WRITER写模式，失败，则调用contendedLock自旋等待获取锁
             if (!U.compareAndSwapInt(this, LOCKSTATE, 0, WRITER))
                 contendedLock(); // offload to separate method
         }
@@ -182,7 +187,7 @@ private final void contendedLock() {
             //for循环直到获取锁为止
             for (int s;;) {
                 //~WAITER，表示按位取反，则除了第二位，其他位都必须为0，才能满足((s = lockState) & ~WAITER) == 0
-                //满足这个条件的只有lockState为0，则进入写模式
+                //因为在ConcurrentHashMap中已经锁住了首节点，所以不会有第二个写线程进来，故满足这个条件的只有lockState为0，则进入写模式
                 if (((s = lockState) & ~WAITER) == 0) {
                     if (U.compareAndSwapInt(this, LOCKSTATE, s, WRITER)) {
                         if (waiting)

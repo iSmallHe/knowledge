@@ -1,4 +1,5 @@
 # LinkedHashMap源码解析
+![title](../image/LinkedHashMap类层次结构.png)  
 LinkedHashMap是继承HashMap，在HashMap中维护了一个数组，每一个桶下，维护了一条链表（红黑树）。而LinkedHashMap在HashMap的基础上增加了一条整体的双向链表。而且其排序有两种方式：
 1. 插入排序：accessOrder=false，默认情况下
 2. 访问排序：accessOrder=true    
@@ -106,5 +107,16 @@ void afterNodeAccess(Node<K,V> e) { // move node to last
             tail = p;
             ++modCount;
         }
+    }
+//插入后，判断是否要驱逐第一个节点
+void afterNodeInsertion(boolean evict) { // possibly remove eldest
+        LinkedHashMap.Entry<K,V> first;
+        if (evict && (first = head) != null && removeEldestEntry(first)) {
+            K key = first.key;
+            removeNode(hash(key), key, null, false, true);
+        }
+    }
+protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+        return false;
     }
 ```
