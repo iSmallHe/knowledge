@@ -336,3 +336,5 @@ ContainerBackgroundProcessorMonitor会在start事件中放入周期性执行器�
 * 过期Session处理
 * 其他任务
 
+## Connector
+![title](../image/Connector.png)
