@@ -176,3 +176,41 @@ as: "把获取到的的值赋值给这个字段
 		}
 	])
 ```
+
+#### 管道示例
+```
+db.getCollection("user_learning_record").aggregate([
+{
+  $project:{
+  	userId:1,
+  	courseId:1,
+  	videoClassTime:1,
+  	time:{"$dateToString":{"format":"%Y-%m-%d","date":'$learningStartTime'}}
+  }
+},
+{
+  $match:{
+  	userId:"1262231516059045890",
+  	videoClassTime:{$gt:0}
+  }
+},
+{
+  $group:{
+  	_id:{time:"$time",cid:"$courseId"},
+  	sum:{$sum:"$videoClassTime"}
+  }
+},
+{
+  $project:{
+  	courseClassTime:'$sum',
+  	time:'$_id.time',
+  	courseId:'$_id.cid'
+  }
+},
+{
+  $sort:{
+  	"time":-1
+  }
+}
+]);
+```
