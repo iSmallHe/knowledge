@@ -5,7 +5,7 @@ jar包依赖冲突：
 > A->B->C->D1(version1)
 > a->b->D2(version2)
 
-此时引用jar包D的不同版本，可能会导致一些问题NoSuchMethodError，ClassNotFoundEexception，NoClassDefFoundException
+此时引用jar包D的不同版本，可能会导致一些问题NoSuchMethodError，ClassNotFoundEexception，NoClassDefFoundException，LinkageError
 
 ## maven选择jar版本原理
 
@@ -34,3 +34,11 @@ jar包依赖冲突：
  </dependency>
 ```
 * 冲突jar包，声明版本
+最好将所有的jar包版本在父pom中声明jar包及版本，子pom在需要的时候，引入jar包
+```
+<dependencyManagement>
+   <groupId>groupId</groupId>
+   <artifactId>artifactId</artifactId>
+   <version>version</version>
+</dependencyManagement>
+```
