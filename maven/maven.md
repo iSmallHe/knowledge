@@ -1,13 +1,13 @@
 # maven
  
-## maven的jar包冲突
+## jar包冲突
 jar包依赖冲突：
 > A->B->C->D1(version1)
 > a->b->D2(version2)
 
 此时引用jar包D的不同版本，可能会导致一些问题NoSuchMethodError，ClassNotFoundEexception，NoClassDefFoundException，LinkageError
 
-## maven选择jar版本原理
+### jar版本原理
 
 * 最短路径优先
 > maven在面对jar包不同版本时，会优先选择jar包依赖路径最短的jar包，即如上示例，则会选择D2版本
@@ -17,7 +17,7 @@ jar包依赖冲突：
 >> A->B->C2
 >> 此时会选择 C1
 
-## 处理jar包冲突方式
+### 处理冲突方式
 
 * 手动移除jar包
 ```
@@ -41,4 +41,9 @@ jar包依赖冲突：
    <artifactId>artifactId</artifactId>
    <version>version</version>
 </dependencyManagement>
+```
+
+## 手动installjar包
+```
+mvn install:install-file -DgroupId=alipay -DartifactId=alipay-sdk-java20170829142630 -Dversion=1.0  -Dfile=C:\Users\smallhe\Desktop\alipay-sdk-java20170829142630-1.0.jar
 ```

@@ -4,6 +4,7 @@
 ### 连接wifi
 1. 连接wifi命令：wpa_supplicant -B -i wlp2s0 -c <(wpa_passphrase "WiFi账号" "WiFi密码")
 2. 查看ip ： ip addr
+3. 设置ip地址：dhclient wlp2s0(本地网卡)
 
 ### 防火墙
 1. 防火墙配置文件地址：/etc/sysconfig/iptables
