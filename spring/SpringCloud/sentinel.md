@@ -290,3 +290,11 @@ private void initSystemProtectionRule() {
 `public static Context getContext()`
 4. 在某个调用链上下文中执行代码：  
 `public static void runOnContext(Context context, Runnable f)`
+
+* **sentinel-dashboard**
+1. 运行sentinel-dashboard的jar包：  
+`java -Dserver.port=9090 -Dcsp.sentinel.dashboard.server=localhost:9090 -Dproject.name=sentinel-dashboard -jar sentinel-dashboard-1.7.2.jar`
+2. 客户端需要在配置文件中添加配置连接dashboard：  
+`spring.cloud.sentinel.transport.port=8719`  
+`spring.cloud.sentinel.transport.dashboard=localhost:9090`  
+3. 由于sentinel-dashboard是懒加载模式，只有客户端接口被请求时，才会加载到控制台中
