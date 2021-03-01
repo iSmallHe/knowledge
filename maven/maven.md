@@ -46,4 +46,6 @@ jar包依赖冲突：
 ## 手动installjar包
 ```
 mvn install:install-file -DgroupId=alipay -DartifactId=alipay-sdk-java20170829142630 -Dversion=1.0  -Dfile=C:\Users\smallhe\Desktop\alipay-sdk-java20170829142630-1.0.jar
+
+mvn org.apache.maven.plugins:maven-install-plugin:2.5.2:install-file "-Dfile=C:\Users\smallhe\Desktop\alipay-sdk-java20170829142630-1.0.jar"
 ```

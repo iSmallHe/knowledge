@@ -94,6 +94,24 @@ cond(yes)->io->e
 cond(no)->sub1(right)->op
 ```
 
+```flow
+flowchat
+st=>start: 开始
+op=>operation: GatewayLockHandler根据message获取相应Handler
+cond=>condition: Handler不为空
+op1=>operation: messageParse解析消息
+op2=>operation: execute执行主要的业务
+cond1=>condition: 判断是否需要断开连接
+op3=>operation: 1.Tio断开连接;2.cache缓存移除
+e=>end: 结束
+st->op->cond
+cond(yes)->op1->op2->cond1
+cond(no)->e
+cond1(yes)->op3->e
+cond1(no)->e
+```
+
+
 ## 9 表格
 <font color='#43CD80'>表格语法：</font>
 ```
