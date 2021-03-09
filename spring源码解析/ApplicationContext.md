@@ -1,5 +1,6 @@
 # ApplicationContext
-
+基于xml配置文件：ClassPathXmlApplicationContext
+基于注解：AnnotationConfigApplicationContext
 ## AbstractApplicationContext
 ### method:refresh()  
 

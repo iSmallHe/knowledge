@@ -434,6 +434,10 @@ protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate d
 }
 
 ```
+
+**RuntimeBeanReference：如果property 是ref引用其他bean，则propertyValue的value值是RuntimeBeanReference**
+**TypedStringValue：如果property 是直接使用value，则propertyValue的value值是TypedStringValue**
+
 # 2. BeanFactory
 BeanFactory重要的几个类：
 * ListableBeanFactory ： 可获取多个bean
