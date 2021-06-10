@@ -10,12 +10,17 @@
 
 ## 重要属性
 
-|name|value|description|
+|waitStatus|value|description|
 |---|---|---|
-|state||锁的标志位|
-||||
-||||
-||||
+|DEFAULT|0|默认值|
+|CANCELLED|1|节点取消|
+|SIGNAL|-1|信号，表示后继节点park，等待唤醒|
+|CONDITION|-2|表示条件等待|
+|PROPAGATE|-3|表示等待传播|
+Node 节点包含两种：
+1. lock等待队列：包含的状态值有 CANCELLED SIGNAL PROPAGATE 0
+2. condition等待队列：包含的状态值有 CANCELLED CONDITION 0
+
 
 ## Sync
 
@@ -37,6 +42,7 @@ final boolean nonfairTryAcquire(int acquires) {
             else if (current == getExclusiveOwnerThread()) {
                 //同一线程的情况下，可直接获取锁，修改state+1，表示获取锁的线程总数
                 int nextc = c + acquires;
+                // 如果nextc小于0，则表示值溢出了，此时最高位的符号位为1，变成了负数
                 if (nextc < 0) // overflow
                     throw new Error("Maximum lock count exceeded");
                 setState(nextc);
@@ -106,7 +112,7 @@ public final void acquire(int arg) {
         //尝试获取锁，若是获取锁失败，则将当前线程以独占模式放入等待队列中
         if (!tryAcquire(arg) &&
             acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
-            //设定中断标志位，等待响应中断
+            //acquireQueued 如果返回true，表示当前线程应当中断，设定中断标志位，等待响应中断
             selfInterrupt();
     }
 private Node addWaiter(Node mode) {
@@ -177,7 +183,7 @@ final boolean acquireQueued(final Node node, int arg) {
 private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
         //获取前节点的状态值
         int ws = pred.waitStatus;
-        //SIGNAL:表示暂时还无法拿到锁，应该进行中断
+        //SIGNAL:表示当前节点暂时还无法拿到锁，应该进行中断
         if (ws == Node.SIGNAL)
             /*
              * This node has already set status asking a release
@@ -201,6 +207,7 @@ private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
              * need a signal, but don't park yet.  Caller will need to
              * retry to make sure it cannot acquire before parking.
              */
+            // 此时表示前节点 为0/PROPOGATION，但是当前节点无法获取lock，所以设置前节点标志位为SIGNAL，让前节点在释放锁的时候，唤醒当前节点的线程
             //此时则表示前节点的状态为0/PROPOGATION,则表明前驱节点正常，则设置前驱节点标志位为SIGNAL，目的等前驱节点获取锁后，执行完成唤醒当前线程
             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
         }
@@ -233,8 +240,8 @@ private void unparkSuccessor(Node node) {
          * fails or if status is changed by waiting thread.
          */
         int ws = node.waitStatus;
-        //此时将waitStatus标志位重置为0，即标志不用唤醒后继节点了
         if (ws < 0)
+            //此时将waitStatus标志位重置为0，即标志不用唤醒后继节点了，如果失败了，意味着状态值已经被等待的线程重置了，所以无需判断是否已经修改
             compareAndSetWaitStatus(node, ws, 0);
 
         /*
@@ -249,7 +256,7 @@ private void unparkSuccessor(Node node) {
             s = null;
             //此时从后往前遍历寻找可用的后继节点进行唤醒
             //为什么要从后往前呢？
-            //答案可能是：cancelAcquire方法在取消节点的时候，只修改了前驱节点的关联关系
+            //答案可能是： cancelAcquire 方法在取消节点的时候，只修改了前驱节点的关联关系
             for (Node t = tail; t != null && t != node; t = t.prev)
                 if (t.waitStatus <= 0)
                     s = t;
@@ -338,7 +345,7 @@ final boolean acquireQueued(final Node node, int arg) {
         }
     }
 ```
-**问题一：finally是在什么时候触发呢？就我目前而看，只有未实现tryAcquire方法时会抛出异常，然后failed=true进入cancelAcquire方法，补充还有predecessor方法如果没有前置节点，也会抛出NullPointerException**
+**问题一：finally是在什么时候触发呢？tryAcquire 方法在获取到锁后，如果超出int的最大值，会抛出异常throw new Error("Maximum lock count exceeded")**
 ##### AQS:private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) 
 ```java
 private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
