@@ -453,13 +453,16 @@ org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.
 
 	protected <T> List<T> getDefaultStrategies(ApplicationContext context, Class<T> strategyInterface) {
 		String key = strategyInterface.getName();
+		// 从properties文件中获取对应的值
 		String value = defaultStrategies.getProperty(key);
 		if (value != null) {
+			// 分割字符串
 			String[] classNames = StringUtils.commaDelimitedListToStringArray(value);
 			List<T> strategies = new ArrayList<>(classNames.length);
 			for (String className : classNames) {
 				try {
 					Class<?> clazz = ClassUtils.forName(className, DispatcherServlet.class.getClassLoader());
+					// 创建默认的解析器
 					Object strategy = createDefaultStrategy(context, clazz);
 					strategies.add((T) strategy);
 				}
@@ -480,21 +483,131 @@ org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.
 			return new LinkedList<>();
 		}
 	}
-
+	// 创建 解析器bean
 	protected Object createDefaultStrategy(ApplicationContext context, Class<?> clazz) {
+		// 即调用 BeanFactory 生成bean
 		return context.getAutowireCapableBeanFactory().createBean(clazz);
 	}
 ```
 	以上分析只是DispatcherServlet的初始化过程。那么映射关系是如何产生的呢？
 ### 映射关系生成
 	首先默认的HanderMapping有三个：
-	1. BeanNameUrlHandlerMapping ：仅仅绑定url与handler的关系，存储在handlerMap中。其创建映射关系的时机在于ApplicationContextAware的setApplicationContext方法中
+	1. BeanNameUrlHandlerMapping ：仅仅绑定url与handler的关系，存储在handlerMap中。其创建映射关系的时机在于ApplicationContextAware的setApplicationContext方法中，业务Controller 需要实现接口 Controller
 	2. RequestMappingHandlerMapping ：mappingLookup中绑定mapping与handlerMethod，urlLookup中绑定url与mapping的映射，并在registry中保存完整的映射关系信息。其创建映射关系的时机在于 InitializingBean的afterPropertiesSet方法中
 	3. RouterFunctionMapping：响应式编程相关，暂不进行分析
 
-![title](../image/HandlerMapping.png)
+![title](../image/handler_mapping.png)
 
+### DispatcherServlet执行
+	DispatcherServlet实际处理接口业务逻辑流程：
+	1. 检测上传文件
+	2. 获取拦截器链
+	3. 获取相应适配器
+	4. 执行拦截器链的prehandle
+	5. 执行适配器中实际的接口业务逻辑
+	6. 执行视图处理
+	7. 执行拦截器链的postHandle
+	8. 处理异常拦截以及拦截器链的afterCompletion
+	9. 最终清理上传文件缓存
+```java
+protected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {
+	HttpServletRequest processedRequest = request;
+	HandlerExecutionChain mappedHandler = null;
+	boolean multipartRequestParsed = false;
 
+	WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+
+	try {
+		ModelAndView mv = null;
+		Exception dispatchException = null;
+
+		try {
+			// 检测是否有文件上传
+			processedRequest = checkMultipart(request);
+			multipartRequestParsed = (processedRequest != request);
+
+			// 根据映射关系获取对应的拦截器-处理器链
+			mappedHandler = getHandler(processedRequest);
+			if (mappedHandler == null) {
+				noHandlerFound(processedRequest, response);
+				return;
+			}
+
+			// 根据所属的处理器获取相应的适配器
+			HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
+
+			// Process last-modified header, if supported by the handler.
+			String method = request.getMethod();
+			boolean isGet = "GET".equals(method);
+			if (isGet || "HEAD".equals(method)) {
+				long lastModified = ha.getLastModified(request, mappedHandler.getHandler());
+				if (new ServletWebRequest(request, response).checkNotModified(lastModified) && isGet) {
+					return;
+				}
+			}
+			// 执行拦截器preHandle
+			if (!mappedHandler.applyPreHandle(processedRequest, response)) {
+				return;
+			}
+
+			// 使用适配器执行实际的接口业务逻辑
+			mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
+
+			if (asyncManager.isConcurrentHandlingStarted()) {
+				return;
+			}
+			// 处理视图
+			applyDefaultViewName(processedRequest, mv);
+			// 执行拦截器链的postHandle
+			mappedHandler.applyPostHandle(processedRequest, response, mv);
+		}
+		catch (Exception ex) {
+			dispatchException = ex;
+		}
+		catch (Throwable err) {
+			// As of 4.3, we're processing Errors thrown from handler methods as well,
+			// making them available for @ExceptionHandler methods and other scenarios.
+			dispatchException = new NestedServletException("Handler dispatch failed", err);
+		}
+		// 处理拦截器链的afterCompletion以及处理异常拦截
+		processDispatchResult(processedRequest, response, mappedHandler, mv, dispatchException);
+	}
+	catch (Exception ex) {
+		// 处理拦截器链的afterCompletion
+		triggerAfterCompletion(processedRequest, response, mappedHandler, ex);
+	}
+	catch (Throwable err) {
+		// 处理拦截器链的afterCompletion
+		triggerAfterCompletion(processedRequest, response, mappedHandler,
+				new NestedServletException("Handler processing failed", err));
+	}
+	finally {
+		if (asyncManager.isConcurrentHandlingStarted()) {
+			// Instead of postHandle and afterCompletion
+			if (mappedHandler != null) {
+				mappedHandler.applyAfterConcurrentHandlingStarted(processedRequest, response);
+			}
+		}
+		else {
+			// 清除上传文件的缓存
+			if (multipartRequestParsed) {
+				cleanupMultipart(processedRequest);
+			}
+		}
+	}
+}
+```
+
+### 拦截器
+	在Spring体系中的拦截器(interceptor)有两种：
+	1. HandlerInterceptor：preHandle方法返回boolean
+	2. WebRequestInterceptor：preHandle方法返回void
+	两者差别不大，带有boolean值的preHandle方法在mvc的请求职责链中可以过滤不符合要求的请求。
+	但是最终要被Spring加载还是需要代理类 MappedInterceptor ，因为我们的拦截器需要进行配置拦截哪些请求，所以Spring默认只加载MappedInterceptor，当然也可以绕过限制，直接使用interceptor，此时会拦截所有请求
+	无论在xml配置时代，还是java类配置时代，默认的实现都是创建代理类 MappedInterceptor。
+
+#### 拦截器初始化
+	初始化时机:在于HandlerMapping类实现的ApplicationContextAware接口中，最终的模板方法在AbstractHandlerMapping.initApplicationContext()中。
 **ApplicationObjectSupport**
 ```java
 	public final void setApplicationContext(@Nullable ApplicationContext context) throws BeansException {
@@ -528,6 +641,7 @@ org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.
 **WebApplicationObjectSupport**
 ```java
 	protected void initApplicationContext(ApplicationContext context) {
+		// 主要初始化逻辑在此
 		super.initApplicationContext(context);
 		if (this.servletContext == null && context instanceof WebApplicationContext) {
 			this.servletContext = ((WebApplicationContext) context).getServletContext();
@@ -537,4 +651,237 @@ org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.
 		}
 	}
 ```
-### 请求映射
+**ApplicationObjectSupport**
+```java
+protected void initApplicationContext(ApplicationContext context) throws BeansException {
+	initApplicationContext();
+}
+```
+**AbstractHandlerMapping**
+```java
+protected void initApplicationContext() throws BeansException {
+	// 暂无实现
+	extendInterceptors(this.interceptors);
+	// 获取spring容器中的MappedInterceptor
+	detectMappedInterceptors(this.adaptedInterceptors);
+	// 将其他途径创建的interceptor添加到adaptedInterceptors中
+	initInterceptors();
+}
+```
+#### 拦截器链创建
+	拦截器链是在DispatcherServlet获取handle时创建
+```java
+protected HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+	if (this.handlerMappings != null) {
+		// 将所有的映射器查询一遍
+		for (HandlerMapping mapping : this.handlerMappings) {
+			HandlerExecutionChain handler = mapping.getHandler(request);
+			if (handler != null) {
+				return handler;
+			}
+		}
+	}
+	return null;
+}
+```
+	AbstractHandlerMapping的模板方法getHandler
+```java
+public final HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+	// 在映射器中获取相应的接口处理器，即初始化时扫描Controller时生成的
+	// 此处由子类拓展，根据不同的映射器获取接口的处理方法
+	Object handler = getHandlerInternal(request);
+	if (handler == null) {
+		handler = getDefaultHandler();
+	}
+	if (handler == null) {
+		return null;
+	}
+	// 如果获取的handler是String，则可能是bean的name或alias，直接去BeanFactory中获取
+	if (handler instanceof String) {
+		String handlerName = (String) handler;
+		handler = obtainApplicationContext().getBean(handlerName);
+	}
+
+	// Ensure presence of cached lookupPath for interceptors and others
+	if (!ServletRequestPathUtils.hasCachedPath(request)) {
+		initLookupPath(request);
+	}
+	// 创建拦截器链，并从adaptedInterceptors中获取相应的拦截器添加到拦截器链中
+	HandlerExecutionChain executionChain = getHandlerExecutionChain(handler, request);
+
+	if (logger.isTraceEnabled()) {
+		logger.trace("Mapped to " + handler);
+	}
+	else if (logger.isDebugEnabled() && !DispatcherType.ASYNC.equals(request.getDispatcherType())) {
+		logger.debug("Mapped to " + executionChain.getHandler());
+	}
+	// 判断是否为cors跨域配置或者是预置OPTIONS请求即PreFlight请求
+	if (hasCorsConfigurationSource(handler) || CorsUtils.isPreFlightRequest(request)) {
+		CorsConfiguration config = getCorsConfiguration(handler, request);
+		if (getCorsConfigurationSource() != null) {
+			CorsConfiguration globalConfig = getCorsConfigurationSource().getCorsConfiguration(request);
+			config = (globalConfig != null ? globalConfig.combine(config) : config);
+		}
+		if (config != null) {
+			config.validateAllowCredentials();
+		}
+		// 此时将跨域处理器放到请求流程中处理
+		executionChain = getCorsHandlerExecutionChain(request, executionChain, config);
+	}
+
+	return executionChain;
+}
+```
+
+### Handler适配器
+	适配器主要用于处理不同类型的业务接口Controller，HandlerAdapter默认实现有四个：
+	1. HttpRequestHandlerAdapter ：主要用于支持HttpRequestHandler接口的子类业务Controller
+	2. SimpleControllerHandlerAdapter ：主要用于支持Controller接口的子类业务Controller
+	3. RequestMappingHandlerAdapter ：用于处理寻常的Controller的方法(HandlerMethod)
+	4. HandlerFunctionAdapter ：主要用于处理响应式接口
+	这里主要介绍下 RequestMappingHandlerAdapter ，该适配器是我们最常使用的，包含了@InitBinder，@ModelAttribute，@ControllerAdvice，入参解析，异步执行。等等逻辑。
+
+#### 适配器初始化
+![title](../image/RequestMappingHandlerAdapter.png)
+	如上图所示， RequestMappingHandlerAdapter 实现接口 InitializingBean ：afterPropertiesSet方法会初始化ControllerAdvice，参数解析器，initBinder解析器，返回值处理器，等等非常重要的步骤
+```java
+public void afterPropertiesSet() {
+	// Do this first, it may add ResponseBody advice beans
+	// @ControllerAdvice：表示全局(当然可配置注解参数)处理：此时会初始化全局 @InitBinder，@ModelAttribute处理
+	initControllerAdviceCache();
+	// 设置参数解析器
+	if (this.argumentResolvers == null) {
+		List<HandlerMethodArgumentResolver> resolvers = getDefaultArgumentResolvers();
+		this.argumentResolvers = new HandlerMethodArgumentResolverComposite().addResolvers(resolvers);
+	}
+	// 设置@InitBinder解析器
+	if (this.initBinderArgumentResolvers == null) {
+		List<HandlerMethodArgumentResolver> resolvers = getDefaultInitBinderArgumentResolvers();
+		this.initBinderArgumentResolvers = new HandlerMethodArgumentResolverComposite().addResolvers(resolvers);
+	}
+	// 设置返回值处理器
+	if (this.returnValueHandlers == null) {
+		List<HandlerMethodReturnValueHandler> handlers = getDefaultReturnValueHandlers();
+		this.returnValueHandlers = new HandlerMethodReturnValueHandlerComposite().addHandlers(handlers);
+	}
+}
+```
+#### 适配器执行
+	RequestMappingHandlerAdapter 在执行业务Controller的HandlerMehtod
+```java
+protected ModelAndView invokeHandlerMethod(HttpServletRequest request,
+		HttpServletResponse response, HandlerMethod handlerMethod) throws Exception {
+	// 包装request，response
+	ServletWebRequest webRequest = new ServletWebRequest(request, response);
+	try {
+		// 获取@ControllerAdvice的全局@InitBinder处理
+		WebDataBinderFactory binderFactory = getDataBinderFactory(handlerMethod);
+		// 获取@ControllerAdvice的全局@ModelAttribute处理
+		ModelFactory modelFactory = getModelFactory(handlerMethod, binderFactory);
+		// 创建代理类 ServletInvocableHandlerMethod
+		ServletInvocableHandlerMethod invocableMethod = createInvocableHandlerMethod(handlerMethod);
+		// 设置参数解析器，即在RequestMappingHandlerAdapter.afterPropertiesSet时添加的
+		if (this.argumentResolvers != null) {
+			invocableMethod.setHandlerMethodArgumentResolvers(this.argumentResolvers);
+		}
+		// 设置返回值处理器，即在RequestMappingHandlerAdapter.afterPropertiesSet时添加的
+		if (this.returnValueHandlers != null) {
+			invocableMethod.setHandlerMethodReturnValueHandlers(this.returnValueHandlers);
+		}
+		invocableMethod.setDataBinderFactory(binderFactory);
+		// 设置查询参数名称工具类
+		invocableMethod.setParameterNameDiscoverer(this.parameterNameDiscoverer);
+		// 创建视图容器
+		ModelAndViewContainer mavContainer = new ModelAndViewContainer();
+		mavContainer.addAllAttributes(RequestContextUtils.getInputFlashMap(request));
+		// 执行@ModelAttribute处理
+		modelFactory.initModel(webRequest, mavContainer, invocableMethod);
+		mavContainer.setIgnoreDefaultModelOnRedirect(this.ignoreDefaultModelOnRedirect);
+		// 异步执行
+		AsyncWebRequest asyncWebRequest = WebAsyncUtils.createAsyncWebRequest(request, response);
+		asyncWebRequest.setTimeout(this.asyncRequestTimeout);
+
+		WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
+		asyncManager.setTaskExecutor(this.taskExecutor);
+		asyncManager.setAsyncWebRequest(asyncWebRequest);
+		asyncManager.registerCallableInterceptors(this.callableInterceptors);
+		asyncManager.registerDeferredResultInterceptors(this.deferredResultInterceptors);
+		// 判断异步执行结果
+		if (asyncManager.hasConcurrentResult()) {
+			Object result = asyncManager.getConcurrentResult();
+			mavContainer = (ModelAndViewContainer) asyncManager.getConcurrentResultContext()[0];
+			asyncManager.clearConcurrentResult();
+			LogFormatUtils.traceDebug(logger, traceOn -> {
+				String formatted = LogFormatUtils.formatValue(result, !traceOn);
+				return "Resume with async result [" + formatted + "]";
+			});
+			invocableMethod = invocableMethod.wrapConcurrentResult(result);
+		}
+		// 执行具体业务方法
+		// ps一个小知识：BridgeMethod是用来处理泛型方法
+		invocableMethod.invokeAndHandle(webRequest, mavContainer);
+		if (asyncManager.isConcurrentHandlingStarted()) {
+			return null;
+		}
+		// 获取最终的视图
+		return getModelAndView(mavContainer, modelFactory, webRequest);
+	}
+	finally {
+		// 执行所有请求销毁回调，并更新请求处理过程中访问的会话属性。
+		webRequest.requestCompleted();
+	}
+}
+
+```
+
+### 异常拦截器
+	ExceptionHandlerExceptionResolver的初始化方法在实现的接口InitializingBean.afterPropertiesSet
+
+```java
+public void afterPropertiesSet() {
+	// Do this first, it may add ResponseBodyAdvice beans
+	initExceptionHandlerAdviceCache();
+
+	if (this.argumentResolvers == null) {
+		List<HandlerMethodArgumentResolver> resolvers = getDefaultArgumentResolvers();
+		this.argumentResolvers = new HandlerMethodArgumentResolverComposite().addResolvers(resolvers);
+	}
+	if (this.returnValueHandlers == null) {
+		List<HandlerMethodReturnValueHandler> handlers = getDefaultReturnValueHandlers();
+		this.returnValueHandlers = new HandlerMethodReturnValueHandlerComposite().addHandlers(handlers);
+	}
+}
+
+private void initExceptionHandlerAdviceCache() {
+	if (getApplicationContext() == null) {
+		return;
+	}
+
+	List<ControllerAdviceBean> adviceBeans = ControllerAdviceBean.findAnnotatedBeans(getApplicationContext());
+	for (ControllerAdviceBean adviceBean : adviceBeans) {
+		Class<?> beanType = adviceBean.getBeanType();
+		if (beanType == null) {
+			throw new IllegalStateException("Unresolvable type for ControllerAdviceBean: " + adviceBean);
+		}
+		ExceptionHandlerMethodResolver resolver = new ExceptionHandlerMethodResolver(beanType);
+		if (resolver.hasExceptionMappings()) {
+			this.exceptionHandlerAdviceCache.put(adviceBean, resolver);
+		}
+		if (ResponseBodyAdvice.class.isAssignableFrom(beanType)) {
+			this.responseBodyAdvice.add(adviceBean);
+		}
+	}
+
+	if (logger.isDebugEnabled()) {
+		int handlerSize = this.exceptionHandlerAdviceCache.size();
+		int adviceSize = this.responseBodyAdvice.size();
+		if (handlerSize == 0 && adviceSize == 0) {
+			logger.debug("ControllerAdvice beans: none");
+		}
+		else {
+			logger.debug("ControllerAdvice beans: " +
+					handlerSize + " @ExceptionHandler, " + adviceSize + " ResponseBodyAdvice");
+		}
+	}
+}
+```

@@ -92,6 +92,116 @@ public void refresh() throws BeansException, IllegalStateException {
 }
 ```
 
+### 重要的拓展类
+1. BeanPostProcessor  
+    `BeanPostProcessor`主要用于拓展bean的初始化前后    
+    注册时机：`AbstractApplicationContext.registerBeanPostProcessors`中    
+    执行时机：`AbstractAutowireCapableBeanFactory.initializeBean`中  
+    ```java
+    public interface BeanPostProcessor {
+        @Nullable
+        default Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+            return bean;
+        }
+
+        @Nullable
+        default Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+            return bean;
+        }
+
+    }
+    ```
+2. BeanFactoryPostProcessor  
+    `BeanFactoryPostProcessor`主要用于拓展处理`BeanFactory`，此时`BeanFactory`已经经过标准的初始化，且已加载所有的`BeanDefinition`，但没有Bean被初始化。  
+    执行时机：`AbstractApplicationContext.invokeBeanFactoryPostProcessors`中
+    ```java
+    public interface BeanFactoryPostProcessor {
+
+	    void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException;
+
+    }
+    ```
+3. BeanDefinitionRegistryPostProcessor  
+    `BeanDefinitionRegistryPostProcessor`主要用于拓展处理`BeanDefinitionRegistry`中的`BeanDefinition`，接口继承于`BeanFactoryPostProcessor`  
+    执行时机：`AbstractApplicationContext.invokeBeanFactoryPostProcessors`中  
+    ```java
+    public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProcessor {
+
+	    void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException;
+
+    }
+    ```
+4. InstantiationAwareBeanPostProcessor  
+    `InstantiationAwareBeanPostProcessor`主要用于拓展处理Bean的实例化前后，属性配置后，接口继承于`BeanPostProcessor`  
+    执行时机：      
+    1. `postProcessBeforeInstantiation`实例化前：`AbstractAutowireCapableBeanFactory.createBean.resolveBeforeInstantiation`
+    2. `postProcessAfterInstantiation`实例化后：`AbstractAutowireCapableBeanFactory.doCreateBean.populateBean`
+    3. `postProcessPropertyValues`属性配置后：`AbstractAutowireCapableBeanFactory.doCreateBean.populateBean`
+    ```java
+    public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
+
+        @Nullable
+        default Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+            return null;
+        }
+
+        default boolean postProcessAfterInstantiation(Object bean, String beanName) throws BeansException {
+            return true;
+        }
+
+        @Nullable
+        default PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName)
+                throws BeansException {
+            return null;
+        }
+
+        @Deprecated
+        @Nullable
+        default PropertyValues postProcessPropertyValues(
+                PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) throws BeansException {
+            return pvs;
+        }
+
+    }
+    ```
+5. InitializingBean  
+    `InitializingBean`主要用于拓展Bean实例化已完成且属性已配置的节点  
+    执行时机：`AbstractAutowireCapableBeanFactory.initializeBean.invokeInitMethods`  
+    ```java
+    public interface InitializingBean {
+
+        void afterPropertiesSet() throws Exception;
+
+    }
+    ```
+
+6. MergedBeanDefinitionPostProcessor  
+    `MergedBeanDefinitionPostProcessor`主要用于拓展修改合并的BeanDefinition，接口继承于`BeanPostProcessor`    
+    执行时机：`AbstractAutowireCapableBeanFactory.doCreateBean.applyMergedBeanDefinitionPostProcessors`
+    ```java
+    public interface MergedBeanDefinitionPostProcessor extends BeanPostProcessor {
+
+        void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName);
+
+        default void resetBeanDefinition(String beanName) {
+        }
+
+    }
+    ```
+7. SmartInitializingSingleton
+    `SmartInitializingSingleton`主要用于拓展单例bean在创建完成后的相关逻辑
+    执行时机：`DefaultListableBeanFactory.preInstantiateSingletons`
+    ```java
+        public interface SmartInitializingSingleton {
+            void afterSingletonsInstantiated();
+        }
+    ```
+
+8. Aware类型接口
+    Aware类型接口属于感知类的接口，用于拓展满足用户需求。
+    1. BeanNameAware
+    2. BeanClassLoaderAware
+    3. BeanFactoryAware
 ### prepareRefresh
 **此方法主要用于spring启动的准备动作**
 ```java

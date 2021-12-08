@@ -417,5 +417,6 @@ public interface BeanFactoryPostProcessor {
 
 }
 ```
+BeanFactoryPostProcessor主要用于拓展处理BeanFactory，此时BeanFactory已经经过标准的初始化，且已加载所有的BeanDefinition，但没有Bean被初始化。执行时机在`AbstractApplicationContext.invokeBeanFactoryPostProcessors`中
 
 ConfigurationClassPostProcessor

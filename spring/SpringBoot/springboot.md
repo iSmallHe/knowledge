@@ -10,6 +10,7 @@
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+		// 从类路劲下查询当前WebApplication的类型：reactive，servlet，none
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
 		this.bootstrapRegistryInitializers = getBootstrapRegistryInitializersFromSpringFactories();
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
@@ -66,14 +67,15 @@
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
-        // 用于判断是 servlet（普通web），还是reactive（响应式），还是none（非web）
+		// 用于判断是 servlet（普通web），还是reactive（响应式），还是none（非web）
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
+		// 加载BootstrapRegistryInitializer
 		this.bootstrapRegistryInitializers = getBootstrapRegistryInitializersFromSpringFactories();
         // 加载ApplicationContextInitializer对应的子类
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
         // 加载ApplicationListener对应的子类
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
-        // 获取当前main方法
+        // 获取系统当前main方法所属类，并加载该类
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
 
@@ -133,6 +135,7 @@
 		// 创建
 		DefaultBootstrapContext bootstrapContext = createBootstrapContext();
 		ConfigurableApplicationContext context = null;
+		// 配置Headless模式
 		configureHeadlessProperty();
 		// 获取监听器
 		SpringApplicationRunListeners listeners = getRunListeners(args);
@@ -240,6 +243,7 @@
 		try {
 			switch (webApplicationType) {
 			case SERVLET:
+				// 我们正常使用
 				return new AnnotationConfigServletWebServerApplicationContext();
 			case REACTIVE:
 				return new AnnotationConfigReactiveWebServerApplicationContext();
@@ -340,6 +344,9 @@ JettyServletWebServerFactory
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
 			StartupStep createWebServer = this.getApplicationStartup().start("spring.boot.webserver.create");
+			// 获取web容器工厂类
+			// 此时我们需要注意到SpringBoot中的自动配置类 ServletWebServerFactoryAutoConfiguration 
+			// 以及spring-boot-starter-web中默认使用tomcat的jar
 			ServletWebServerFactory factory = getWebServerFactory();
 			createWebServer.tag("factory", factory.getClass().toString());
 			this.webServer = factory.getWebServer(getSelfInitializer());
