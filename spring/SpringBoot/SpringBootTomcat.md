@@ -15,7 +15,7 @@ private void createWebServer() {
         // 此处不理解的话，需要去查看SpringBoot的自动加载配置信息
         ServletWebServerFactory factory = getWebServerFactory();
         createWebServer.tag("factory", factory.getClass().toString());
-        // 向tomcat中注册Filter，Servlet，listener的重中之重在 getSelfInitializer()
+        // 向tomcat中注册Filter，Servlet，listener的重中之重在 getSelfInitializer()，但getSelfInitializer我们稍后分析，我们先追踪下ServletContextInitializer的后续走向
         this.webServer = factory.getWebServer(getSelfInitializer());
         createWebServer.end();
         getBeanFactory().registerSingleton("webServerGracefulShutdown",
@@ -33,7 +33,7 @@ private void createWebServer() {
     }
     initPropertySources();
 }
-
+// 此时我们继续追踪ServletContextInitializer
 public WebServer getWebServer(ServletContextInitializer... initializers) {
     if (this.disableMBeanRegistry) {
         Registry.disableRegistry();
@@ -51,10 +51,12 @@ public WebServer getWebServer(ServletContextInitializer... initializers) {
     for (Connector additionalConnector : this.additionalTomcatConnectors) {
         tomcat.getService().addConnector(additionalConnector);
     }
+    // 此时准备Context，会引用到ServletContextInitializer
     prepareContext(tomcat.getHost(), initializers);
+    // 此时将启动tomcat
     return getTomcatWebServer(tomcat);
 }
-
+// 继续追踪ServletContextInitializer
 protected void prepareContext(Host host, ServletContextInitializer[] initializers) {
     File documentRoot = getValidDocumentRoot();
     TomcatEmbeddedContext context = new TomcatEmbeddedContext();
@@ -90,19 +92,23 @@ protected void prepareContext(Host host, ServletContextInitializer[] initializer
         addJasperInitializer(context);
     }
     context.addLifecycleListener(new StaticResourceConfigurer(context));
+    // ServletContextInitializer在此处进行合并
     ServletContextInitializer[] initializersToUse = mergeInitializers(initializers);
     host.addChild(context);
+    // 并将合并后的ServletContextInitializer再进行配置
     configureContext(context, initializersToUse);
     postProcessContext(context);
 }
-
+// 继续追踪ServletContextInitializer
 protected void configureContext(Context context, ServletContextInitializer[] initializers) {
+    // TomcatStarter将在onStartup时，initializers调用onStartup
     TomcatStarter starter = new TomcatStarter(initializers);
     if (context instanceof TomcatEmbeddedContext) {
         TomcatEmbeddedContext embeddedContext = (TomcatEmbeddedContext) context;
         embeddedContext.setStarter(starter);
         embeddedContext.setFailCtxIfServletStartFails(true);
     }
+    // 此时将TomcatStarter放入，此时追踪到此结束，这意味这，在tomcat启动后，对这些ServletContextInitializer执行，有兴趣可以继续观看后续的源码，但我们此时不再进行过多分析，因为后续涉及太多的tomcat源码
     context.addServletContainerInitializer(starter, NO_CLASSES);
     for (LifecycleListener lifecycleListener : this.contextLifecycleListeners) {
         context.addLifecycleListener(lifecycleListener);
@@ -130,6 +136,7 @@ protected void configureContext(Context context, ServletContextInitializer[] ini
     }
 }
 ```
+    需要查看tomcat相关源码，请看[tomcat源码](../../tomcat/tomcat9.md)
 
 ### 自加载
     getSelfInitializer()方法会创建一个函数式接口ServletContextInitializer，这个函数式接口的内容就是回调selfInitialize

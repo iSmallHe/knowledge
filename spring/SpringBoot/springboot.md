@@ -293,7 +293,9 @@
 		// Load the sources
 		Set<Object> sources = getAllSources();
 		Assert.notEmpty(sources, "Sources must not be empty");
-		// 加载 BeanDefinition
+		// 加载 BeanDefinition，在SpringBoot中，此时仅仅只是加载了启动类，所以这是我们需要关注到SpringBoot的一个注解@SpringBootApplication
+		// @SpringBootApplication上还有注解@SpringBootConfiguration，@EnableAutoConfiguration，@ComponentScan
+		// @ComponentScan注解会默认加载该类路径（包含子路径）上的所有bean
 		load(context, sources.toArray(new Object[0]));
 		// 监听 context-loaded
 		listeners.contextLoaded(context);

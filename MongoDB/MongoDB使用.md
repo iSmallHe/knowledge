@@ -73,28 +73,28 @@ db.collection.mapReduce(
 
 ```
 #### map部分
-函数：function map(){
-　　　　emit(param1, param2);
-　　}
-作用：用于分组
-参数说明：
-　　param1：需要分组的字段，this.字段名
-　　param2：需要进行统计的字段，this.字段名  
+	函数：function map(){
+	　　　　emit(param1, param2);
+	　　}
+	作用：用于分组
+	参数说明：
+	　　param1：需要分组的字段，this.字段名
+	　　param2：需要进行统计的字段，this.字段名  
 
 #### reduce部分
-作用：处理需要统计的字段
-函数：function reduce(key, values){
-　　　　// 统计字段处理
-　　}
-参数说明：
-　　key： 指分组字段（emit的param1）对应的值
-　　values：指需要统计的字段（emit的param2）值组成的数组  
+	作用：处理需要统计的字段
+		函数：function reduce(key, values){
+		　　　　// 统计字段处理
+		　　}
+	参数说明：
+	　　key： 指分组字段（emit的param1）对应的值
+	　　values：指需要统计的字段（emit的param2）值组成的数组  
 
 #### option部分
-out：将统计结果存放到集合中 (不指定则使用临时集合,在客户端断开后自动删除)
-query：一个筛选条件，只有满足条件的文档才会调用map函数（query，limit，sort可以随意组合）
-sort：和limit结合的sort排序参数（也是在发往map函数前给文档排序），可以优化分组机制
-limit：发往map函数的文档数量的上限（要是没有limit，单独使用sort的用处不大）
+	out：将统计结果存放到集合中 (不指定则使用临时集合,在客户端断开后自动删除)
+	query：一个筛选条件，只有满足条件的文档才会调用map函数（query，limit，sort可以随意组合）
+	sort：和limit结合的sort排序参数（也是在发往map函数前给文档排序），可以优化分组机制
+	limit：发往map函数的文档数量的上限（要是没有limit，单独使用sort的用处不大）
 
 #### mapReduce示例
 ```
