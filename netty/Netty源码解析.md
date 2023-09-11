@@ -137,6 +137,9 @@ public final class HttpHelloWorldServer {
     }
 ```
 
+### NioEventLoop
+    taskQueue
+    tailTasks
 ```java
     // 类 NioEventLoopGroup 创建 NioEventLoop
     protected EventLoop newChild(Executor executor, Object... args) throws Exception {
@@ -266,7 +269,7 @@ public final class HttpHelloWorldServer {
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-        // channel注册selector中
+        // 获取ServerBootstrapConfig,再获取bossGroup(NioEventLoopGroup),然后将channel注册到group中(其本质是channel注册selector中)
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -291,11 +294,32 @@ public final class HttpHelloWorldServer {
 ```
 
 #### 创建NioServerSocketChannel
-
+1. 创建NioServerSocketChannel的方式是用工厂类ReflectiveChannelFactory,通过反射,调用构造器的newInstance创建.
+2. 创建的时候会首先调用SelectorProvider生成ServerSocketChannel
+3. NioMessageUnsafe
 ```java
+    // NioServerSocketChannel 的静态属性
+    private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
+
     public NioServerSocketChannel() {
         this(newSocket(DEFAULT_SELECTOR_PROVIDER));
     }
+    // 创建java的ServerSocketChannel
+    private static ServerSocketChannel newSocket(SelectorProvider provider) {
+        try {
+            /**
+             *  Use the {@link SelectorProvider} to open {@link SocketChannel} and so remove condition in
+             *  {@link SelectorProvider#provider()} which is called by each ServerSocketChannel.open() otherwise.
+             *
+             *  See <a href="https://github.com/netty/netty/issues/2308">#2308</a>.
+             */
+            return provider.openServerSocketChannel();
+        } catch (IOException e) {
+            throw new ChannelException(
+                    "Failed to open a server socket.", e);
+        }
+    }
+
     // newSocket方法创建java nio中的ServerSocketChannel
     public NioServerSocketChannel(ServerSocketChannel channel) {
         // 设置该channel默认的事件，但是该值在register时，并未直接绑定OP_ACCEPT
@@ -334,6 +358,19 @@ public final class HttpHelloWorldServer {
     protected DefaultChannelPipeline newChannelPipeline() {
         return new DefaultChannelPipeline(this);
     }
+
+    // 创建ChannelPipeline时会创建链表,用于处理数据
+    protected DefaultChannelPipeline(Channel channel) {
+        this.channel = ObjectUtil.checkNotNull(channel, "channel");
+        succeededFuture = new SucceededChannelFuture(channel, null);
+        voidPromise =  new VoidChannelPromise(channel, true);
+
+        tail = new TailContext(this);
+        head = new HeadContext(this);
+
+        head.next = tail;
+        tail.prev = head;
+    }
 ```
 
 #### 初始化channel
@@ -349,7 +386,8 @@ public final class HttpHelloWorldServer {
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions = newOptionsArray(childOptions);
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
-        // 添加处理器 bossGroup中的处理器，以及ServerBootstrapAcceptor
+        // 添加处理器 bossGroup中的处理器，以及ServerBootstrapAcceptor, 
+        // 在未register的情况下,ChannelHandler会设置handlerState = ADD_PENDING, 然后pipeline会创建任务,延迟执行(pendingHandlerCallbackHead)
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
