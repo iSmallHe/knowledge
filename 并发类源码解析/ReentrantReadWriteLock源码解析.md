@@ -4,7 +4,22 @@
 3. state：在读写锁ReentrantReadWriteLock中，高16位代表的是写锁的持有数，低16位代表的是读锁的持有数。
 4. nextWaiter：在AQS中，如果是读锁则存储的是SHARED（new Node()），如果是写锁，则存储的是EXCLUSIVE（null），如果是condition中，则存储的是下一个条件节点。
 5. waitStatus：默认初始值0，取消（CANCELLED=1），表示后继节点待唤醒（SIGNAL=-1），条件队列节点（CONDITION = -2），共享锁传播（PROPAGATE = -3）。
-### 写锁WriteLock实现
+
+## 重要属性
+|name|value|description|
+|---|---|:---|
+|Sync|FairSync/NonfairSync|工作锁/非公平锁|
+|ReadLock|ReadLock|读锁|
+|WriteLock|WriteLock|写锁|
+
+## Sync实现
+    firstReader
+    readHolds
+    cachedHoldCounter
+    state：高16位代表的是写锁的持有数，低16位代表的是读锁的持有数。
+
+
+## 写锁WriteLock实现
 ```java
 //ReentrantReadWriteLock.WriteLock中方法
 public void lock() {
@@ -240,7 +255,7 @@ protected final boolean tryRelease(int releases) {
     return free;
 }
 ```
-### 读锁ReadLock原理解析
+## 读锁ReadLock原理解析
 ``` java
 //ReentrantReadWriteLock.ReadLock类中的方法
 public void lock() {
@@ -593,7 +608,7 @@ private void doReleaseShared() {
     }
 }
 ```
-### condition条件原理解析
+## condition条件原理解析
 ```java
 //AQS.ConditionObject类中的方法
 public final void await() throws InterruptedException {

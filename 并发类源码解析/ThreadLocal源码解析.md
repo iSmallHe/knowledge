@@ -1,5 +1,16 @@
 # ThreadLocal源码解析
 
+## ThreadLocal运行原理
+    首先我们在分析ThreadLocal源码之前，先简要分析下其运行逻辑：
+ThreadLocal本身并不存储数据，所有的数据均是存储于Thread类中的ThreadLocalMap之中，ThreadLocalMap中存储的数据类型是Entry，其继承于WeakReference，其父类Reference属性referent存储ThreadLocal对象，Entry本身存储value（即我们想要缓存的线程变量）。即Entry中的key是ThreadLocal，value是缓存对象，其继承于WeakReference类，即相当于将ThreadLocal设置为弱引用，当ThreadLocal不再被强引用持有时，系统GC时将回收ThreadLocal，那么在ThreadLocalMap中操作数据时，会调用方法`expungeStaleEntries`清理这些过期数据
+
+    1. 为什么要将ThreadLocal设置为弱引用？
+>首先，java是基于垃圾自动回收的理念进行设计！
+>如果ThreadLocal不是弱引用，且在整个线程的生命周期之中没有主动将ThreadLocal从ThreadLocalMap中释放的话，那么直到线程死亡之前，线程缓存数据永远都不会被清理，那么这就意味着内存泄露了。
+>如果ThreadLocal是弱引用，且在整个线程的生命周期之中没有主动将ThreadLocal从ThreadLocalMap中释放的话，那么在ThreadLocal再无强引用关联的情况下，JVM在GC的时候就会回收该对象，之后再使用ThreadLocalMap时，则会自动清理过期数据。但这也建立在一个前提下：即ThreadLocal再无强引用关联
+
+    2. 什么情况下ThreadLocal会造成内存泄漏？
+
 ## ThreadLocal源码
 ```java
 //ThreadLocal其实是将数据存放在Thread中的ThreadLocalMap

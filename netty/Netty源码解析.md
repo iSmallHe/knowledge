@@ -1,4 +1,4 @@
-# Netty源码解析
+## Netty源码解析
 
 ### demo
 ```java
@@ -50,7 +50,7 @@ public final class HttpHelloWorldServer {
 ```
 ### NioEventLoopGroup
     创建NioEventLoopGroup，nThreads默认是根据CPU核心数的2倍
-    服务端会同时创建两个NioEventLoopGroup,一个是处理客户端请求任务分发，另一个用于处理客户端数据
+    服务端会同时创建两个NioEventLoopGroup,一个是处理客户端连接，另一个用于处理客户端数据
 ```java
     public NioEventLoopGroup(int nThreads) {
         this(nThreads, (Executor) null);
@@ -202,6 +202,32 @@ public final class HttpHelloWorldServer {
     }   
 ```
 
+### Handler
+handler按处理分组：
+1. `handler(new LoggingHandler(LogLevel.INFO))`用于处理bossGroup，即处理主线程的连接事件OP_ACCEPT
+2. `childHandler(new HttpHelloWorldServerInitializer(sslCtx))`用于处理workGroup，即处理读写OP_READ,OP_WIRTE
+
+handler按处理出入站则分为：
+1. ChannelInboundHandler：主要处理入站事件：
+    channelRead，
+    channelReadComplete，
+    channelRegistered，
+    channelUnregistered，
+    channelActive，
+    channelInactive，
+    userEventTriggered，
+    channelWritabilityChanged，
+    exceptionCaught
+2. ChannelOutboundHandler：主要处理出站事件：
+    bind，
+    connect，
+    disconnect，
+    close，
+    deregister，
+    read，
+    write，
+    flush
+
 ### bind
     绑定端口地址
 ```java
@@ -293,7 +319,7 @@ public final class HttpHelloWorldServer {
 
 ```
 
-#### 创建NioServerSocketChannel
+#### newChannel
 1. 创建NioServerSocketChannel的方式是用工厂类ReflectiveChannelFactory,通过反射,调用构造器的newInstance创建.
 2. 创建的时候会首先调用SelectorProvider生成ServerSocketChannel
 3. NioMessageUnsafe
@@ -373,7 +399,7 @@ public final class HttpHelloWorldServer {
     }
 ```
 
-#### 初始化channel
+#### init
 ```java
     // 初始化channel
     void init(Channel channel) {
