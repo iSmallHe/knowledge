@@ -1,6 +1,6 @@
 # Mybatis源码解析
 
-## mybatis入门
+## 简单使用
 
 ```java
 public static void main(String[] args) {
@@ -22,7 +22,7 @@ public static void main(String[] args) {
 }
 ```
 
-## 解析mybatis配置文件
+## 解析配置文件
     1. 创建解析类XMLConfigBuilder
     2. 解析配置文件: parser.parse()
     3. 创建默认的DefaultSqlSessionFactory
@@ -125,7 +125,7 @@ public static void main(String[] args) {
     }
 ```
 
-### 解析Document
+### 解析DOM
     解析Document文件,将配置信息填充至Configuration类中
     1. 解析根节点configuration
     2. 解析根节点下的子节点
@@ -207,7 +207,7 @@ public static void main(String[] args) {
     }
 ```
 
-## mybatis主要结构分析
+## 结构分析
 
     主要来看mybatis分为几个部分
 
