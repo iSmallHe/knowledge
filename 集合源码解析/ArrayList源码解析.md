@@ -50,8 +50,12 @@ public boolean add(E e) {
 
 
 ## 扩容
+
     确保容量，首先计算容量，如果容量不够，则进行扩容。
+
+
 ```java
+
 // 确保内部容量
 private void ensureCapacityInternal(int minCapacity) {
     // 计算容量
