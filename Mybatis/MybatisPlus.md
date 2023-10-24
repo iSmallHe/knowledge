@@ -37,6 +37,7 @@
 
 ### AbstractSqlInjector
     mybaits-plus的sql注入器，用于生成BaseMapper的方法
+    
 ### AbstractMethod
 
 ### SelectList
