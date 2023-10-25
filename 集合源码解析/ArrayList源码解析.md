@@ -32,6 +32,8 @@ public ArrayList(int initialCapacity) {
     }
 }
 ```
+
+
 ## 新增
     向数组插入元素
 
@@ -47,8 +49,12 @@ public boolean add(E e) {
 ```
 
 ## 扩容
+
     确保容量，首先计算容量，如果容量不够，则进行扩容。
+
+
 ```java
+
 // 确保内部容量
 private void ensureCapacityInternal(int minCapacity) {
     // 计算容量
@@ -95,6 +101,7 @@ private static int hugeCapacity(int minCapacity) {
 }
 ```
 
+
 ## 删除
 
 ### 删除下标
@@ -120,6 +127,7 @@ public E remove(int index) {
     return oldValue;
 }
 ```
+
 ### 删除对象
     删除数组中存在的对象，可删除null
 ```java
@@ -155,8 +163,11 @@ private void fastRemove(int index) {
 
 ## 迭代器Itr
     Itr是ArrayList的内部类，可共享宿主对象属性方法。遍历只可单向向后
+
+
 ### UML
 ![Itr](../image/Itr继承树.png)
+
 
 ### 重要属性
 |name|value|description|
@@ -165,9 +176,11 @@ private void fastRemove(int index) {
 |lastRet|int|下标：指向当前元素，默认-1|
 |expectedModCount|int|预期modCount，防止迭代器遍历时，数组元素被更改|
 
+
 ### 原理简析
 <font color='#FFA500'>ArrayList中的迭代器的原理：</font>  
 <font color='#43CD80'>创建内部类迭代器对象，使用属性cursor指向当前容器下标，当执行next()方法时，返回当前cursor下标的对象，cursor值+1，属性lastRet指向当前返回对象所在下标</font>  
+
 
 ### next
     迭代器向后遍历
@@ -189,6 +202,8 @@ public E next() {
     return (E) elementData[lastRet = i];
 }
 ```
+
+
 ### 校验
     判断expectedModCount是否与ArrayList的modCount一致，防止遍历时，数组元素被修改
 ```java
@@ -254,6 +269,7 @@ public E previous() {
     return (E) elementData[lastRet = i];
 }
 ```
+
 ### 修改
     向lastRet下标处，修改元素，实际是调用ArrayList.set方法
 ```java
@@ -269,6 +285,7 @@ public void set(E e) {
     }
 }
 ```
+
 ### 新增
     向cursor下标处插入新元素，实际是调用ArrayList.add方法
 ```java
