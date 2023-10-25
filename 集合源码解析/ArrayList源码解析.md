@@ -45,6 +45,7 @@ public boolean add(E e) {
     return true;
 }
 ```
+
 ## 扩容
     确保容量，首先计算容量，如果容量不够，则进行扩容。
 ```java
@@ -53,8 +54,7 @@ private void ensureCapacityInternal(int minCapacity) {
     // 计算容量
     ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
 }
-
-// 计算容量
+// 计算容量 
 private static int calculateCapacity(Object[] elementData, int minCapacity) {
     if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
         return Math.max(DEFAULT_CAPACITY, minCapacity);
@@ -84,7 +84,6 @@ private void grow(int minCapacity) {
     // 复制数组元素到新数组中
     elementData = Arrays.copyOf(elementData, newCapacity);
 }
-
 // 判断大容量下的可能情况
 private static int hugeCapacity(int minCapacity) {
     // minCapacity 可能在自增的过程中超过Integer.MAX，此时进位后，变成负数
