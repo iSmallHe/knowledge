@@ -6,7 +6,7 @@
 
 ## 重要属性
 
-## LinkedList
+### LinkedList
 |name|value|description|
 |---|---|:---|
 |size|int|元素个数|
@@ -14,17 +14,17 @@
 |last|Node|尾节点|
 |modCount|int|修改计数|
 
-## Node
+### Node
 |name|value|description|
 |---|---|:---|
 |item|E|元素个数|
-|next|Node<E>|后节点|
 |prev|Node<E>|前节点|
+|next|Node<E>|后节点|
 
 ## 原理简析
 
 <font color='#43CD80'>`LinkedList`采用的是双向链表结构，其存储对象为`Node`，每一个`Node`对象都会包含一个`next`，`prev`的属性；</font>  
-<font color='#43CD80'>双向链表的原理：`Node`元素的属性`prev`指向前一个节点，属性`next`指向后一个节点。以此衔接每一个节点`Node`</font>  
+<font color='#43CD80'>双向链表的原理：`Node`元素的属性`prev`指向前一个节点，属性`next`指向后一个节点。以此衔接链表中的每一个节点`Node`</font>  
 
 ## 新增
     新增元素：向后添加新节点
@@ -242,6 +242,7 @@ final void checkForComodification() {
 ## 分割器Spliterator
 >`Spliterator`是Java 8中加入的一个新接口；这个名字代表“可拆分迭代器”（`splitable iterator`）。和`Iterator`一样，`Spliterator`也用于遍历数据源中的元素，但它是为了并行执行而设计的。Java 8已经为集合框架中包含的所有数据结构提供了一个默认的`Spliterator`实现。集合实现了`Spliterator`接口，接口提供了一个`spliterator`方法。
 
+    该类在实际工作中，应用较少。具体后续使用到了再作分析。
 ### UML
 ![UML](../image/LinkedList-LLSpliterator.png)
 
