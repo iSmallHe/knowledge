@@ -87,7 +87,8 @@ static final int tableSizeFor(int cap) {
     return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
 }
 ```
-**我们以二进制示例演示其过程**
+**我们以二进制示例演示其过程**  
+
 |init|value|operate|value|description|
 |---|---|---|---|---|
 |初始值|01xx xxxx xxxx xxxx xxxx xxxx|左移1位|001x xxxx xxxx xxxx xxxx xxxx|此时相或，最高位1的2位都置为1|
