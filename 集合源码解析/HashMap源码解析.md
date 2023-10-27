@@ -11,9 +11,9 @@
 |DEFAULT_INITIAL_CAPACITY|1 << 4 == 16|默认初始容量|
 |MAXIMUM_CAPACITY|1 << 30 == 1073741824|最大容量|
 |DEFAULT_LOAD_FACTOR|0.75f|默认负载因子|
-|TREEIFY_THRESHOLD|8|红黑树阈值|
+|TREEIFY_THRESHOLD|8|红黑树阈值：当链表长度超过该值时，链表转红黑树|
 |UNTREEIFY_THRESHOLD|6|反红黑树阈值|
-|MIN_TREEIFY_CAPACITY|64|可以对链表进行树化的最小表容量|
+|MIN_TREEIFY_CAPACITY|64|可以对链表进行树化的最小table长度|
 |table|Node<K,V>[]|节点数组|
 |entrySet|Set<Map.Entry<K,V>>|缓存EntrySet|
 |size|int|元素总个数|
@@ -41,7 +41,7 @@
 |prev|TreeNode|用于链表关联的前节点|
 
 ## 3 原理简析
->`HashMap`实现是采用数组+链表（单向链表+红黑树）实现的。
+>`HashMap`实现是采用 数组+单向链表/数组+红黑树+双向链表
 >`HashMap`根据`node`的`hash`值确定存储`table`数组的下标，即`(n - 1) & hash`，`table`存储链表/红黑树的根节点，如果已经存在根节点，则在根节点后以链表的方式关联，当链表存储过长时，则将链表转换为红黑树结构
 >扩容：当`HashMap`中的节点总数`size`超过阈值`threshold`时，则会触发扩容
 
@@ -130,7 +130,7 @@ static final int tableSizeFor(int cap) {
 
 
 ## 6 put
-
+    HashMap中插入元素key，value
 ```java
 public V put(K key, V value) {
         return putVal(hash(key), key, value, false, true);
@@ -203,6 +203,7 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 ```
 
 ## 7 扩容
+    当HashMap中的元素总数超过threshold时，触发扩容
 ```java
 final Node<K,V>[] resize() {
     Node<K,V>[] oldTab = table;
@@ -355,15 +356,20 @@ final Node<K,V> removeNode(int hash, Object key, Object value,
 ## 数据结构转换
 
 ### 转红黑树
-    链表转红黑树
+    链表转红黑树，其需要满足两个条件：
+    1. 链表长度必须超过TREEIFY_THRESHOLD = 8
+    2. table长度必须大于等于MIN_TREEIFY_CAPACITY = 64
+
 ```java
 final void treeifyBin(Node<K,V>[] tab, int hash) {
     int n, index; Node<K,V> e;
+    // table长度必须大于等于MIN_TREEIFY_CAPACITY，才会触发链表转红黑树
     if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
         resize();
     else if ((e = tab[index = (n - 1) & hash]) != null) {
         TreeNode<K,V> hd = null, tl = null;
         do {
+            // 将普通节点转换位TreeNode节点
             TreeNode<K,V> p = replacementTreeNode(e, null);
             if (tl == null)
                 hd = p;
@@ -374,6 +380,7 @@ final void treeifyBin(Node<K,V>[] tab, int hash) {
             tl = p;
         } while ((e = e.next) != null);
         if ((tab[index] = hd) != null)
+            // 转换为红黑树
             hd.treeify(tab);
     }
 }
@@ -398,4 +405,318 @@ final Node<K,V> untreeify(HashMap<K,V> map) {
 
 ## 红黑树
 
+### 特性
+红黑树是一种自平衡二叉搜索树，每个节点都有颜色，颜色为红色或黑色，红黑树由此得名。除了满足二叉搜索树的特性以外，红黑树还具有如下特性：
 
+1. 节点是红色或黑色。
+
+2. 根节点是黑色。
+
+3. 所有叶子节点都是黑色的空节点。(叶子节点是NIL节点或NULL节点)
+
+4. 每个红色节点的两个子节点都是黑色节点。(从每个叶子节点到根的所有路径上不能有两个连续的红色节点)
+
+5. 从任一节点到其每个叶子节点的所有路径都包含相同数目的黑色节点。
+
+>利用其特性：我们可以设置每次插入的新节点都是红节点。
+
+
+
+### UML
+
+![UML](../image/HashMap-TreeNode.png)
+
+### treeify
+    转换为红黑树
+```java
+
+final void treeify(Node<K,V>[] tab) {
+    TreeNode<K,V> root = null;
+    for (TreeNode<K,V> x = this, next; x != null; x = next) {
+        next = (TreeNode<K,V>)x.next;
+        x.left = x.right = null;
+        // 初始root节点
+        if (root == null) {
+            x.parent = null;
+            x.red = false;
+            root = x;
+        }
+        else {
+            // 存在root节点后，其他节点插入
+            K k = x.key;
+            int h = x.hash;
+            Class<?> kc = null;
+            // 死循环插入
+            for (TreeNode<K,V> p = root;;) {
+                int dir, ph;
+                K pk = p.key;
+                // 根据hash值判断在p节点的左侧还是右侧
+                if ((ph = p.hash) > h)
+                    dir = -1;
+                else if (ph < h)
+                    dir = 1;
+                // 如果hash值相等，则判断K类是否实现了Comparable<T>接口，如果实现了，则返回实际T类
+                // 如果K类实现了Comparable，并且泛型是自己，则使用compareTo进行比较
+                else if ((kc == null &&
+                            (kc = comparableClassFor(k)) == null) ||
+                            (dir = compareComparables(kc, k, pk)) == 0)
+                    // 如果不满足，以上条件，使用System.identityHashCode进行判断
+                    dir = tieBreakOrder(k, pk);
+
+                TreeNode<K,V> xp = p;
+                // 如果当前节点为空，则进行插入
+                if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                    x.parent = xp;
+                    if (dir <= 0)
+                        xp.left = x;
+                    else
+                        xp.right = x;
+                    // 插入节点后，平衡红黑树
+                    root = balanceInsertion(root, x);
+                    break;
+                }
+            }
+        }
+    }
+    // 将红黑树的root节点作为table的根节点
+    moveRootToFront(tab, root);
+}
+// 判断x是否实现了Comparable<T>接口，如果实现了，则返回实际T类
+static Class<?> comparableClassFor(Object x) {
+    if (x instanceof Comparable) {
+        Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
+        if ((c = x.getClass()) == String.class) // bypass checks
+            return c;
+        if ((ts = c.getGenericInterfaces()) != null) {
+            for (int i = 0; i < ts.length; ++i) {
+                if (((t = ts[i]) instanceof ParameterizedType) &&
+                    ((p = (ParameterizedType)t).getRawType() ==
+                        Comparable.class) &&
+                    (as = p.getActualTypeArguments()) != null &&
+                    as.length == 1 && as[0] == c) // type arg is c
+                    return c;
+            }
+        }
+    }
+    return null;
+}
+// 如果K类实现了Comparable，并且泛型是自己，则使用compareTo进行比较
+static int compareComparables(Class<?> kc, Object k, Object x) {
+    return (x == null || x.getClass() != kc ? 0 :
+            ((Comparable)k).compareTo(x));
+}
+// 使用默认hash码进行判断：System.identityHashCode
+static int tieBreakOrder(Object a, Object b) {
+    int d;
+    if (a == null || b == null ||
+        (d = a.getClass().getName().
+            compareTo(b.getClass().getName())) == 0)
+        d = (System.identityHashCode(a) <= System.identityHashCode(b) ?
+                -1 : 1);
+    return d;
+}
+```
+
+### 左旋
+    红黑树节点左旋
+```java
+static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
+                                        TreeNode<K,V> p) {
+    TreeNode<K,V> r, pp, rl;
+    if (p != null && (r = p.right) != null) {
+        if ((rl = p.right = r.left) != null)
+            rl.parent = p;
+        if ((pp = r.parent = p.parent) == null)
+            (root = r).red = false;
+        else if (pp.left == p)
+            pp.left = r;
+        else
+            pp.right = r;
+        r.left = p;
+        p.parent = r;
+    }
+    return root;
+}
+```
+
+
+### 右旋
+    红黑树节点右旋
+```java
+static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
+                                        TreeNode<K,V> p) {
+    TreeNode<K,V> l, pp, lr;
+    if (p != null && (l = p.left) != null) {
+        if ((lr = p.left = l.right) != null)
+            lr.parent = p;
+        if ((pp = l.parent = p.parent) == null)
+            (root = l).red = false;
+        else if (pp.right == p)
+            pp.right = l;
+        else
+            pp.left = l;
+        l.right = p;
+        p.parent = l;
+    }
+    return root;
+}
+```
+
+
+### balanceInsertion
+    插入节点后，平衡红黑树
+```java
+
+static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
+                                            TreeNode<K,V> x) {
+    x.red = true;
+    for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
+        if ((xp = x.parent) == null) {
+            x.red = false;
+            return x;
+        }
+        else if (!xp.red || (xpp = xp.parent) == null)
+            return root;
+        if (xp == (xppl = xpp.left)) {
+            if ((xppr = xpp.right) != null && xppr.red) {
+                xppr.red = false;
+                xp.red = false;
+                xpp.red = true;
+                x = xpp;
+            }
+            else {
+                if (x == xp.right) {
+                    root = rotateLeft(root, x = xp);
+                    xpp = (xp = x.parent) == null ? null : xp.parent;
+                }
+                if (xp != null) {
+                    xp.red = false;
+                    if (xpp != null) {
+                        xpp.red = true;
+                        root = rotateRight(root, xpp);
+                    }
+                }
+            }
+        }
+        else {
+            if (xppl != null && xppl.red) {
+                xppl.red = false;
+                xp.red = false;
+                xpp.red = true;
+                x = xpp;
+            }
+            else {
+                if (x == xp.left) {
+                    root = rotateRight(root, x = xp);
+                    xpp = (xp = x.parent) == null ? null : xp.parent;
+                }
+                if (xp != null) {
+                    xp.red = false;
+                    if (xpp != null) {
+                        xpp.red = true;
+                        root = rotateLeft(root, xpp);
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+
+
+### balanceDeletion
+    删除节点后，平衡红黑树
+```java
+static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
+                                            TreeNode<K,V> x) {
+    for (TreeNode<K,V> xp, xpl, xpr;;)  {
+        if (x == null || x == root)
+            return root;
+        else if ((xp = x.parent) == null) {
+            x.red = false;
+            return x;
+        }
+        else if (x.red) {
+            x.red = false;
+            return root;
+        }
+        else if ((xpl = xp.left) == x) {
+            if ((xpr = xp.right) != null && xpr.red) {
+                xpr.red = false;
+                xp.red = true;
+                root = rotateLeft(root, xp);
+                xpr = (xp = x.parent) == null ? null : xp.right;
+            }
+            if (xpr == null)
+                x = xp;
+            else {
+                TreeNode<K,V> sl = xpr.left, sr = xpr.right;
+                if ((sr == null || !sr.red) &&
+                    (sl == null || !sl.red)) {
+                    xpr.red = true;
+                    x = xp;
+                }
+                else {
+                    if (sr == null || !sr.red) {
+                        if (sl != null)
+                            sl.red = false;
+                        xpr.red = true;
+                        root = rotateRight(root, xpr);
+                        xpr = (xp = x.parent) == null ?
+                            null : xp.right;
+                    }
+                    if (xpr != null) {
+                        xpr.red = (xp == null) ? false : xp.red;
+                        if ((sr = xpr.right) != null)
+                            sr.red = false;
+                    }
+                    if (xp != null) {
+                        xp.red = false;
+                        root = rotateLeft(root, xp);
+                    }
+                    x = root;
+                }
+            }
+        }
+        else { // symmetric
+            if (xpl != null && xpl.red) {
+                xpl.red = false;
+                xp.red = true;
+                root = rotateRight(root, xp);
+                xpl = (xp = x.parent) == null ? null : xp.left;
+            }
+            if (xpl == null)
+                x = xp;
+            else {
+                TreeNode<K,V> sl = xpl.left, sr = xpl.right;
+                if ((sl == null || !sl.red) &&
+                    (sr == null || !sr.red)) {
+                    xpl.red = true;
+                    x = xp;
+                }
+                else {
+                    if (sl == null || !sl.red) {
+                        if (sr != null)
+                            sr.red = false;
+                        xpl.red = true;
+                        root = rotateLeft(root, xpl);
+                        xpl = (xp = x.parent) == null ?
+                            null : xp.left;
+                    }
+                    if (xpl != null) {
+                        xpl.red = (xp == null) ? false : xp.red;
+                        if ((sl = xpl.left) != null)
+                            sl.red = false;
+                    }
+                    if (xp != null) {
+                        xp.red = false;
+                        root = rotateRight(root, xp);
+                    }
+                    x = root;
+                }
+            }
+        }
+    }
+}
+```
