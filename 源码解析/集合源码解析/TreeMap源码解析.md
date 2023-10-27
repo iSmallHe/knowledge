@@ -1,5 +1,5 @@
 # TreeMap源码解析
-![title](../image/TreeMap类层次结构.png)  
+![title](../../image/TreeMap类层次结构.png)  
 TreeMap中元素需实现Comparable接口或者在构建TreeMap时必须添加Comparator比较器，以此进行排序。TreeMap中仅维护一颗红黑树。
 ```java
 public V put(K key, V value) {

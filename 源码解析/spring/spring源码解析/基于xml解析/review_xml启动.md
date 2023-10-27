@@ -1,7 +1,7 @@
 # xml启动流程再分析
 ClassPathXmlApplicationContext
 
-![title](../../../image/ClassPathXmlApplicationContext_review.png)
+![title](../../../../image/ClassPathXmlApplicationContext_review.png)
 
 ## 启动流程
 
@@ -253,7 +253,7 @@ public void registerDependentBean(String beanName, String dependentBeanName) {
 }
 ```
     循环依赖的AlreadySeen的问题
-![title](../../../image/循环依赖AlreadySeen.png)
+![title](../../../../image/循环依赖AlreadySeen.png)
 #### 2. 循环引用问题
 #### 3. BeanPostProcessor的相关问题
 #### 4. 属性注入的问题

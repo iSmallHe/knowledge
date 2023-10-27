@@ -172,7 +172,7 @@ private static BeanDefinition registerOrEscalateApcAsRequired(
     2. InstantiationAwareBeanPostProcessor：好像没用到，暂时不管
     3. BeanFactoryAware：注入Spring的BeanFactory，方便后续逻辑拓展，以及管理创建的代理类
     4. 以及其主要维护AOP主要流程的ProxyCreator
-![title](../../../image/AnnotationAwareAspectJAutoProxyCreator类层级图.png)
+![title](../../../../image/AnnotationAwareAspectJAutoProxyCreator类层级图.png)
 
 
 #### setBeanFactory

@@ -1,6 +1,6 @@
 # LinkedList
 ## UML
-![title](../image/LinkedList继承树.png)  
+![title](../../image/LinkedList继承树.png)  
 
 > 从LinkedList的uml关系图中可以看到，LinkedList不仅是一个`List`集合，还是一个双端队列`Deque`接口的实现类
 
@@ -127,7 +127,7 @@ E unlink(Node<E> x) {
     迭代器的操作逻辑都是一致的，与ArrayList相比来说，并没有太大的区别，此处不再赘述
 ### UML
 
-![UML](../image/LinkedList-ListItr.png)
+![UML](../../image/LinkedList-ListItr.png)
 
 ### 重要属性
 
@@ -244,7 +244,7 @@ final void checkForComodification() {
 
     该类在实际工作中，应用较少。具体后续使用到了再作分析。
 ### UML
-![UML](../image/LinkedList-LLSpliterator.png)
+![UML](../../image/LinkedList-LLSpliterator.png)
 
 ### 重要属性
 |name|value|description|

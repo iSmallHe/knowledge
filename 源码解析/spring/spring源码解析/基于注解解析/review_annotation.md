@@ -1,6 +1,6 @@
 # 基于注解启动分析
 
-![title](../../../image/review_AnnotationConfigApplicationContext继承树.png)
+![title](../../../../image/review_AnnotationConfigApplicationContext继承树.png)
 
 ## 要点提炼
 

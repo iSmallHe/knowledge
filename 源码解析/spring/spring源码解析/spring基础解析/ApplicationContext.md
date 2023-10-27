@@ -1,6 +1,6 @@
 # ApplicationContext基础解析
 
-![ApplicationContext继承图](../../../image/ApplicationContext.png)
+![ApplicationContext继承图](../../../../image/ApplicationContext.png)
 
 **ApplicationContext主要的实现类有**
 1. **FileSystemXmlApplicationContext: 基于xml配置文件的spring容器启动类**

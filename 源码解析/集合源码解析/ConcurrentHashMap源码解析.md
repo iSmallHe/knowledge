@@ -1,7 +1,7 @@
 # 1. ConcurrentHashMap源码解析
 >HashMap主要用于单线程或者无竞争下使用，ConcurrentHashMap主要用于多线程下，属于线程安全类。  
 ## ConcurrentHashMap类层次结构
-![title](../image/ConcurrentHashMap类层次结构.png)  
+![title](../../image/ConcurrentHashMap类层次结构.png)  
 
 ## ConcurrentHashMap属性
 |name|value|description|

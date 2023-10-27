@@ -1,7 +1,7 @@
 # SpringMVC源码解析
 
 ## DispatcherServlet类层次结构
-![title](../image/DispatcherServlet类层次结构.png)
+![title](../../image/DispatcherServlet类层次结构.png)
 
 ## 源码解析
 ```java

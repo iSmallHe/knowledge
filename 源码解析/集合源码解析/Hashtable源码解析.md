@@ -1,5 +1,5 @@
 # Hashtable源码解析
-![title](../image/Hashtable类层次结构.png)  
+![title](../../image/Hashtable类层次结构.png)  
 Hashtable中采用数组+链表的方式实现。且所有方法基本上都使用synchronized，进行加锁，所以Hashtable是线程安全类。
 Hashtable中所有key，value均不允许为null
 ```java

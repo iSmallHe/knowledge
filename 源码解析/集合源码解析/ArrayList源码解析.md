@@ -1,6 +1,6 @@
 # ArrayList源码解析
 ## UML
-![title](../image/ArrayList继承树.png)
+![title](../../image/ArrayList继承树.png)
 
 ## 重要属性
 |name|value|description|
@@ -166,7 +166,7 @@ private void fastRemove(int index) {
 
 
 ### UML
-![Itr](../image/Itr继承树.png)
+![Itr](../../image/Itr继承树.png)
 
 
 ### 重要属性
@@ -237,7 +237,7 @@ public void remove() {
 ## 迭代器ListItr
 
 ### UML
-![ListItr](../image/ListItr继承树.png)
+![ListItr](../../image/ListItr继承树.png)
 
 ### 原理简析
 >ListItr继承自Itr，并拓展了可向前遍历的特性，并添加了新增(add)，修改(set)等方法。这里必须要强调一点：虽然可以前后遍历，但不意味着，在向后/向前遍历的时候，能够执行反向遍历。

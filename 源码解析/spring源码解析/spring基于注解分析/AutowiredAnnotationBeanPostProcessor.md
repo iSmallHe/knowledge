@@ -1,6 +1,6 @@
 # AutowiredAnnotationBeanPostProcessor
 
-![title](../../image/AutowiredAnnotationBeanPostProcessor.png)
+![title](../../../image/AutowiredAnnotationBeanPostProcessor.png)
 AutowiredAnnotationBeanPostProcessor 的执行时机：
 1. AnnotationConfigApplicationContext 在构造器中初始化的时候会创建部分重要的 RootBeanDefinition，其中包含了         AutowiredAnnotationBeanPostProcessor
 2. 

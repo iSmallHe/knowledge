@@ -1,7 +1,7 @@
 # ConfigurationClassPostProcessor源码分析
 
 ConfigurationClassPostProcessor继承关系图
-![title](../../image/ConfigurationClassPostProcessor.png)
+![title](../../../image/ConfigurationClassPostProcessor.png)
 
 由此可以看出 ConfigurationClassPostProcessor 实现了接口BeanDefinitionRegistryPostProcessor，而BeanDefinitionRegistryPostProcessor接口继承于BeanFactoryPostProcessor接口。
 

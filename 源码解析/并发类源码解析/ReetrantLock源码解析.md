@@ -1,8 +1,8 @@
 # ReetrantLock源码解析
 ## ReentrantLock,Sync类层次结构
 
-![title](../image/ReentrantLock.png)
-![title](../image/Sync类层次结构.png)
+![title](../../image/ReentrantLock.png)
+![title](../../image/Sync类层次结构.png)
 
 
 >* ReenTrantLock属于可重入锁，默认非公平模式。  

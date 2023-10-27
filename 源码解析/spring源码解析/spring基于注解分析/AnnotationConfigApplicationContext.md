@@ -1,6 +1,6 @@
 # AnnotationConfigApplicationContext
 
-<img src="../../image/AnnotationConfigApplicationContext.png"  alt="结构图" />
+<img src="../../../image/AnnotationConfigApplicationContext.png"  alt="结构图" />
 
 > 重要属性：
 > 1. reader = AnnotatedBeanDefinitionReader

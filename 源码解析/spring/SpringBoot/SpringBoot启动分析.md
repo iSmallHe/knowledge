@@ -65,7 +65,7 @@ Main-Class: org.springframework.boot.loader.JarLauncher
 
 #### Main-Class
 
-![title](../../image/launcher类.jpg)
+![title](../../../image/launcher类.jpg)
 
 ```java
 

@@ -1,7 +1,7 @@
 # SpringMVC启动流程源码解析
 SpringMVC主要的关键类在于DispatcherServlet
 ## DispatcherServlet的类图
-![title](../image/DispatcherServlet类图.png)
+![title](../../image/DispatcherServlet类图.png)
 
 DispatcherServlet继承于父类`FrameworkServlet`,爷爷`HttpServletBean`。而这其中重要的方法则是`init`方法。
 
@@ -496,7 +496,7 @@ org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.
 	2. RequestMappingHandlerMapping ：mappingLookup中绑定mapping与handlerMethod，urlLookup中绑定url与mapping的映射，并在registry中保存完整的映射关系信息。其创建映射关系的时机在于 InitializingBean的afterPropertiesSet方法中
 	3. RouterFunctionMapping：响应式编程相关，暂不进行分析
 
-![title](../image/handler_mapping.png)
+![title](../../image/handler_mapping.png)
 
 ### DispatcherServlet执行
 	DispatcherServlet实际处理接口业务逻辑流程：
@@ -742,7 +742,7 @@ public final HandlerExecutionChain getHandler(HttpServletRequest request) throws
 	这里主要介绍下 RequestMappingHandlerAdapter ，该适配器是我们最常使用的，包含了@InitBinder，@ModelAttribute，@ControllerAdvice，入参解析，异步执行。等等逻辑。
 
 #### 适配器初始化
-![title](../image/RequestMappingHandlerAdapter.png)
+![title](../../image/RequestMappingHandlerAdapter.png)
 	如上图所示， RequestMappingHandlerAdapter 实现接口 InitializingBean ：afterPropertiesSet方法会初始化ControllerAdvice，参数解析器，initBinder解析器，返回值处理器，等等非常重要的步骤
 ```java
 public void afterPropertiesSet() {

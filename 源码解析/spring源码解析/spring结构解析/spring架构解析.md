@@ -1,6 +1,6 @@
 # spring架构解析
 spring基础架构图
-![title](../../image/spring架构.jpg)
+![title](../../../image/spring架构.jpg)
 
 spring重要的顶级类：
 1. ApplicationContext
@@ -21,7 +21,7 @@ spring重要的顶级类：
 Metadata 使用用来描述元数据，即 类信息，或者注解信息，方法信息等等
 
 ## ApplicationContext
-![title](../../image/ApplicationContext主要实现类.png)
+![title](../../../image/ApplicationContext主要实现类.png)
 1. XmlWebApplicationContext:基于(默认/WEB-INF下的)xml配置文件
 2. ClassPathXmlApplicationContext:基于classpath的xml配置文件
 3. FileSystemXmlApplicationContext:基于文件系统的xml配置文件
@@ -30,7 +30,7 @@ Metadata 使用用来描述元数据，即 类信息，或者注解信息，方�
 在类的继承关系图中可以看到ApplicationContext的主要实现类，都是继承实现了BeanFactory，LifeCycle，ResourceLoader，Aware
 
 ## BeanFactory
-![title](../../image/BeanFactory继承关系.png)
+![title](../../../image/BeanFactory继承关系.png)
 
 BeanFactory就是spring的容器，IOC的核心  
 

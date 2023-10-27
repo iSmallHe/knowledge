@@ -1,5 +1,5 @@
 # 1. ApplicationContext
-![图片alt](../image/ApplicationContext结构树.png "ApplicationContext结构树")
+![图片alt](../../image/ApplicationContext结构树.png "ApplicationContext结构树")
 重要的三个子类：
     * ClassPathXmlApplicationContext : 类路径下的xml解析bean
     * FileSystemXmlApplicationContext ：基本与ClassPathXmlApplicationContext一致，它通过设置configLocation来指定配置文件路径

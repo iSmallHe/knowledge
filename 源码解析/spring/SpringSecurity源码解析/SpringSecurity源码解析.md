@@ -203,7 +203,7 @@ public class WebSecurityConfiguration implements ImportAware, BeanClassLoaderAwa
 
 ### WebSecurity
 	首先我们要关注下WebSecurity的类结构，实现了顶级类SecurityBuilder
-![WebSecurity类结构](../../image/WebSecurity类结构.png)
+![WebSecurity类结构](../../../image/WebSecurity类结构.png)
 
 #### build
 	构建流程的模板方法在AbstractConfiguredSecurityBuilder.doBuild方法中，制定了整个加载流程。
@@ -305,7 +305,7 @@ protected Filter performBuild() throws Exception {
 
 ### WebSecurityConfigurerAdapter
 	我们实现对Spring-Security的配置主要通过继承WebSecurityConfigurerAdapter来实现
-![WebSecurityConfigurerAdapter类结构](../../image/WebSecurityConfigurerAdapter类结构.png)  
+![WebSecurityConfigurerAdapter类结构](../../../image/WebSecurityConfigurerAdapter类结构.png)  
 
 	实现的配置方法有：
 	configure(WebSecurity web)：对WebSecurity进行配置，执行时机在WebSecurity.configure阶段
@@ -452,7 +452,7 @@ protected DefaultSecurityFilterChain performBuild() {
 	自定义方式使用范围最广，也最实用，所以在此只分析自定义模式
 	
 #### DaoAuthenticationConfigurer
-![DaoAuthenticationConfigurer类结构](../../image/DaoAuthenticationConfigurer类结构.png)
+![DaoAuthenticationConfigurer类结构](../../../image/DaoAuthenticationConfigurer类结构.png)
 
 	父类(AbstractDaoAuthenticationConfigurer)会默认创建DaoAuthenticationProvider
 	其configure阶段会向AuthenticationManagerBuilder添加DaoAuthenticationProvider

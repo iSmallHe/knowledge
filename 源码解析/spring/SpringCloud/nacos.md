@@ -4,7 +4,7 @@
 [nacos官方文档](https://nacos.io/zh-cn/)
 
 ## 2.nacos地图
-![nacos地图](../../image/nacosMap.jpg)
+![nacos地图](../../../image/nacosMap.jpg)
 
 ## 3.Nacos Spring Cloud
 nacos主要功能分为两大块：Nacos Config(动态配置)，Nacos Discovery(服务注册与发现)

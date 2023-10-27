@@ -1,7 +1,7 @@
 # HashMap源码解析
 
 ## 1 UML
-![title](../image/HashMap类层次结构.png)  
+![title](../../image/HashMap类层次结构.png)  
 
 ## 2 重要属性
 
@@ -421,7 +421,7 @@ final Node<K,V> untreeify(HashMap<K,V> map) {
 
 ### UML
 
-![UML](../image/HashMap-TreeNode.png)
+![UML](../../image/HashMap-TreeNode.png)
 
 ### treeify
     转换为红黑树
