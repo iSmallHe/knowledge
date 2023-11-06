@@ -71,9 +71,9 @@
 ## 6 图片
 <font color='#43CD80'>图片语法：`![图片alt](图片地址 "图片title")`</font>
 
-`![我是一张图片](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1589970483314&di=b1f2e976c2d366df1d35262cac6a88bf&imgtype=0&src=http%3A%2F%2Fa3.att.hudong.com%2F14%2F75%2F01300000164186121366756803686.jpg "图片title")`
+`![我是一张图片](http://1.116.114.158/home.jpg "图片title")`
 
-![我是一张图片](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1589970483314&di=b1f2e976c2d366df1d35262cac6a88bf&imgtype=0&src=http%3A%2F%2Fa3.att.hudong.com%2F14%2F75%2F01300000164186121366756803686.jpg "图片title")
+![我是一张图片](http://1.116.114.158/home.jpg "图片title")
 
 
 ## 7 代码块
@@ -131,4 +131,13 @@ cond1(no)->e
 |---|:--:|---:|
 |内容|内容|内容|
 |内容|内容|内容|
-***
+
+
+## 10 自动链接
+
+```
+<http://www.google.com>
+```
+
+<http://www.google.com>
+

@@ -3,6 +3,11 @@
 ## UML
 ![title](../../image/Hashtable类层次结构.png)  
 
+
+## 适用场景
+
+    1. 由于Hashtable中的方法都使用synchronized，所以是线程安全类，支持并发访问
+
 ## 重要属性
 ### Hashtable
 |name|value|description|

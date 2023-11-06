@@ -4,6 +4,11 @@
 
 > 从LinkedList的uml关系图中可以看到，LinkedList不仅是一个`List`集合，还是一个双端队列`Deque`接口的实现类
 
+## 适用场景
+
+    1. 不清楚元素总数
+    2. 按顺序访问元素
+
 ## 重要属性
 
 ### LinkedList

@@ -3,6 +3,12 @@
 ## UML
 ![title](../../image/LinkedHashMap类层次结构.png)  
 
+
+## 适用场景
+
+    1. 由于在HashMap的基础上维护了一个链表，所以LinkedHashMap可以支持按插入顺序遍历元素，当然LinkedHashMap也支持按访问顺序排序，即访问过的元素，置于链表尾端。
+
+
 ## 重要属性
 
 ### LinkedHashMap
@@ -24,7 +30,7 @@
 |hash|int|key的hash值|
 |key|K|key|
 |value|V|value|
-|next|Entry<?,?>[]|链表引用，指向下一个节点|
+|next|Node<K,V>|链表引用，指向下一个节点|
 
 ## 原理简析
 

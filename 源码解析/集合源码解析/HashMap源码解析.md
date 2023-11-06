@@ -39,6 +39,7 @@
 |left|TreeNode|子左节点|
 |right|TreeNode|子右节点|
 |prev|TreeNode|用于链表关联的前节点|
+|red|boolean|颜色：true 红/ false 黑|
 
 ## 3 原理简析
 >`HashMap`实现是采用 数组+单向链表/数组+红黑树+双向链表
@@ -404,6 +405,8 @@ final Node<K,V> untreeify(HashMap<K,V> map) {
 ```
 
 ## 红黑树
+
+>[详细分析](../../数据结构/红黑树.md)
 
 ### 特性
 红黑树是一种自平衡二叉搜索树，每个节点都有颜色，颜色为红色或黑色，红黑树由此得名。除了满足二叉搜索树的特性以外，红黑树还具有如下特性：
