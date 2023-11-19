@@ -563,10 +563,59 @@ static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
 ```
 
 
-### balanceInsertion
+### putTreeVal
     插入节点后，平衡红黑树
 ```java
 
+final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
+                                    int h, K k, V v) {
+        Class<?> kc = null;
+        boolean searched = false;
+        TreeNode<K,V> root = (parent != null) ? root() : this;
+        for (TreeNode<K,V> p = root;;) {
+            int dir, ph; K pk;
+            // 判断插入节点的顺序
+            if ((ph = p.hash) > h)
+                dir = -1;
+            else if (ph < h)
+                dir = 1;
+            else if ((pk = p.key) == k || (k != null && k.equals(pk)))
+                return p;
+            else if ((kc == null &&
+                        (kc = comparableClassFor(k)) == null) ||
+                        (dir = compareComparables(kc, k, pk)) == 0) {
+                if (!searched) {
+                    TreeNode<K,V> q, ch;
+                    searched = true;
+                    if (((ch = p.left) != null &&
+                            (q = ch.find(h, k, kc)) != null) ||
+                        ((ch = p.right) != null &&
+                            (q = ch.find(h, k, kc)) != null))
+                        return q;
+                }
+                dir = tieBreakOrder(k, pk);
+            }
+            // 找到叶节点插入
+            TreeNode<K,V> xp = p;
+            if ((p = (dir <= 0) ? p.left : p.right) == null) {
+                Node<K,V> xpn = xp.next;
+                TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
+                if (dir <= 0)
+                    xp.left = x;
+                else
+                    xp.right = x;
+                xp.next = x;
+                x.parent = x.prev = xp;
+                if (xpn != null)
+                    ((TreeNode<K,V>)xpn).prev = x;
+                // 插入后，进行红黑树平衡，再将新的root节点更新
+                moveRootToFront(tab, balanceInsertion(root, x));
+                return null;
+            }
+        }
+    }
+
+// 插入红黑树平衡
 static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                             TreeNode<K,V> x) {
     x.red = true;
@@ -625,11 +674,129 @@ static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
 
 
 
-### balanceDeletion
+### removeTreeNode
     删除节点后，平衡红黑树
 ```java
+final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
+                            boolean movable) {
+    int n;
+    if (tab == null || (n = tab.length) == 0)
+        return;
+    int index = (n - 1) & hash;
+    TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
+    TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+    if (pred == null)
+        tab[index] = first = succ;
+    else
+        pred.next = succ;
+    if (succ != null)
+        succ.prev = pred;
+    if (first == null)
+        return;
+    if (root.parent != null)
+        root = root.root();
+    if (root == null || root.right == null ||
+        (rl = root.left) == null || rl.left == null) {
+        tab[index] = first.untreeify(map);  // too small
+        return;
+    }
+    // p节点即当前删除节点
+    TreeNode<K,V> p = this, pl = left, pr = right, replacement;
+    // 如果p节点有双子节点，则找到右子树的最左节点作为替换节点
+    if (pl != null && pr != null) {
+        TreeNode<K,V> s = pr, sl;
+        // 找到右子树的最左节点s
+        while ((sl = s.left) != null) // find successor
+            s = sl;
+        // 将s节点与p节点颜色互换
+        boolean c = s.red; s.red = p.red; p.red = c; // swap colors
+        TreeNode<K,V> sr = s.right;
+        TreeNode<K,V> pp = p.parent;
+        // 然后将s节点与p节点 替换，先将s节点的关系转交给p节点
+        if (s == pr) { // p was s's direct parent
+            // 此时s节点就是p节点的右子节点
+            p.parent = s;
+            s.right = p;
+        }
+        else {
+            // s节点不是p节点的右子节点
+            TreeNode<K,V> sp = s.parent;
+            // p关联s的父节点
+            if ((p.parent = sp) != null) {
+                if (s == sp.left)
+                    sp.left = p;
+                else
+                    sp.right = p;
+            }
+            // s关联p的右节点
+            if ((s.right = pr) != null)
+                pr.parent = s;
+        }
+        p.left = null;
+        // p关联s的右节点
+        if ((p.right = sr) != null)
+            sr.parent = p;
+        // s关联p的左节点
+        if ((s.left = pl) != null)
+            pl.parent = s;
+        // s关联p的父节点
+        if ((s.parent = pp) == null)
+            root = s;
+        else if (p == pp.left)
+            pp.left = s;
+        else
+            pp.right = s;
+        // p节点与s节点完成替换
+        if (sr != null)
+            // 如果此时最左子节点有右节点（此时右节点肯定是红色），则可以用该红节点进行替换
+            replacement = sr;
+        else
+            // 用右子树的最左子节点进行替换
+            replacement = p;
+    }
+    // 如果p节点只有单子节点（此时子节点肯定是红色），则用该子节点进行替换
+    else if (pl != null)
+        replacement = pl;
+    else if (pr != null)
+        replacement = pr;
+    else
+        // 如果p节点没有子节点，则replacement就是他自己
+        replacement = p;
+    // 当替换节点不是p节点自己，就需要将p节点的关系交给replacement节点
+    if (replacement != p) {
+        TreeNode<K,V> pp = replacement.parent = p.parent;
+        if (pp == null)
+            root = replacement;
+        else if (p == pp.left)
+            pp.left = replacement;
+        else
+            pp.right = replacement;
+        // 清空p节点的关系
+        p.left = p.right = p.parent = null;
+    }
+    // 此时p节点已经是叶节点了，如果是红色，则直接删除，不需要进行平衡，不是的话，需要平衡红黑树
+    TreeNode<K,V> r = p.red ? root : balanceDeletion(root, replacement);
+    // 替换节点就是p节点自己的话，需要清除p节点的关联关系
+    if (replacement == p) {  // detach
+        TreeNode<K,V> pp = p.parent;
+        p.parent = null;
+        if (pp != null) {
+            if (p == pp.left)
+                pp.left = null;
+            else if (p == pp.right)
+                pp.right = null;
+        }
+    }
+    if (movable)
+        moveRootToFront(tab, r);
+}
+// 平衡红黑树：此时用于处理叶节点x的平衡问题
+// p节点是黑节点，即删除的是黑节点，此时黑高肯定少1，如此则要补充黑高/整体黑高减1
+// 1. x节点是待删除节点p的子节点
+// 2. x节点就是待删除节点p
 static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                             TreeNode<K,V> x) {
+    // 循环处理平衡                                
     for (TreeNode<K,V> xp, xpl, xpr;;)  {
         if (x == null || x == root)
             return root;
@@ -638,16 +805,21 @@ static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
             return x;
         }
         else if (x.red) {
+            // x此时肯定是p的子节点，那么将x置黑，即可保证黑高不变
             x.red = false;
             return root;
         }
+        // 此时x为左节点
         else if ((xpl = xp.left) == x) {
+            // x的兄弟节点是红节点
             if ((xpr = xp.right) != null && xpr.red) {
+                // xp节点左旋，并与xpr节点颜色互换
                 xpr.red = false;
                 xp.red = true;
                 root = rotateLeft(root, xp);
                 xpr = (xp = x.parent) == null ? null : xp.right;
             }
+            // w
             if (xpr == null)
                 x = xp;
             else {
