@@ -15,7 +15,7 @@
 |---|---|:---|
 |head|transient volatile Node|头节点|
 |tail|transient volatile Node|尾节点|
-|state|volatile int|状态|
+|state|volatile int|状态：锁的标志位|
 |unsafe|Unsafe unsafe = Unsafe.getUnsafe()|用于直接处理类的属性值|
 
 ### Node
@@ -25,21 +25,34 @@
 |SHARED|Node|共享模式|
 |EXCLUSIVE|null|独占模式|
 |CANCELLED|1|节点取消|
-|SIGNAL|-1|信号：表示可唤醒下一个节点|
+|SIGNAL|-1|信号：表示需要唤醒下一个节点|
 |CONDITION|-2|条件：表示当前节点是condition等待队列的节点|
 |PROPAGATE|-3|传播：共享模式下传播唤醒|
-|waitStatus|volatile int|CANCELLED/SIGNAL//CONDITION/PROPAGATE：当前节点等待状态|
+|waitStatus|volatile int|CANCELLED/SIGNAL//CONDITION/PROPAGATE：当前节点状态|
 |prev|volatile Node|前节点|
 |next|volatile Node|后节点|
 |thread|volatile Thread|节点所表示的线程|
 |nextWaiter|Node|SHARED/EXCLUSIVE，表示当前节点模式|
 
+### ConditionObject
+
+|name|value|description|
+|---|---|:---|
+|firstWaiter|transient Node|头节点|
+|lastWaiter|transient Node|尾节点|
+
 ## 原理简析
 
+![AQS](../../image/AQS.png)
 
 ## 源码分析
 
-### acquire
+### 独占锁
+>
+>
+>
+>
+#### acquire
 >当前获取独占锁使用的通用的模板方法：
 >1. 直接尝试获取锁
 >2. 获取锁失败后，将当前线程添加到等待队列中，等待时机唤醒，循环获取锁
@@ -56,16 +69,16 @@ static void selfInterrupt() {
 }
 ```
 
-### tryAcquire
-    尝试获取锁，用于子类拓展；可分为 公平/非公平获取锁
+#### tryAcquire
+>尝试获取锁，用于子类拓展；可分为 公平/非公平获取锁
 ```java
 protected boolean tryAcquire(int arg) {
     throw new UnsupportedOperationException();
 }
 ```
 
-### addWaiter
-    将当前线程添加到等待队列中
+#### addWaiter
+>将当前线程添加到等待队列中
 ```java
 private Node addWaiter(Node mode) {
     // 将当前线程以及模式构建节点对象
@@ -87,8 +100,8 @@ private Node addWaiter(Node mode) {
 }
 ```
 
-### enq
-    节点循环入队
+#### enq
+>节点循环入队
 ```java
 private Node enq(final Node node) {
     for (;;) {
@@ -110,8 +123,8 @@ private Node enq(final Node node) {
 }
 ```
 
-### acquireQueued
-    判断当前节点是否能获取锁，如果无法获取锁，则park当前线程，等待被唤醒后，重试获取锁
+#### acquireQueued
+>判断当前节点是否能获取锁，如果无法获取锁，则park当前线程，等待被唤醒后，重试获取锁
 ```java
 final boolean acquireQueued(final Node node, int arg) {
     boolean failed = true;
@@ -127,20 +140,23 @@ final boolean acquireQueued(final Node node, int arg) {
                 failed = false;
                 return interrupted;
             }
-            // 获取锁失败后，判断是否需要暂停当前线程，并检查当前线程是否出现中断
+            // 获取锁失败后，判断是否需要暂停当前线程，并在唤醒后检查当前线程是否出现中断
             if (shouldParkAfterFailedAcquire(p, node) &&
                 parkAndCheckInterrupt())
                 interrupted = true;
         }
     } finally {
         if (failed)
+            // 获取锁失败后，取消该节点
             cancelAcquire(node);
     }
 }
 ```
 
-### shouldParkAfterFailedAcquire
-
+#### shouldParkAfterFailedAcquire
+> 1. 如果pred节点的waitStatus是SIGNAL时，那么就可以park当前线程
+> 2. 不是的情况下，如果pred节点已取消，则过滤取消的节点
+> 3. 如果pred节点不是SIGNAL或CANCELED，那么就以CAS的方式设置pred节点为SIGNAL，以便下次循环时park线程
 ```java
 
 private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
@@ -173,10 +189,124 @@ private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
 ```
 
 
-### parkAndCheckInterrupt
+#### parkAndCheckInterrupt
+> park当前线程，并在线程被唤醒时，判断是否中断
 ```java
 private final boolean parkAndCheckInterrupt() {
     LockSupport.park(this);
     return Thread.interrupted();
 }
 ```
+
+
+#### release
+> 释放锁
+```java
+
+public final boolean release(int arg) {
+    if (tryRelease(arg)) {
+        Node h = head;
+        if (h != null && h.waitStatus != 0)
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+```
+
+#### tryRelease
+> 尝试直接释放锁，由子类实现
+```java
+
+protected boolean tryRelease(int arg) {
+    throw new UnsupportedOperationException();
+}
+```
+
+
+#### unparkSuccessor
+> 唤醒后继节点
+```java
+private void unparkSuccessor(Node node) {
+    /*
+        * If status is negative (i.e., possibly needing signal) try
+        * to clear in anticipation of signalling.  It is OK if this
+        * fails or if status is changed by waiting thread.
+        */
+    int ws = node.waitStatus;
+    if (ws < 0)
+        compareAndSetWaitStatus(node, ws, 0);
+
+    /*
+        * Thread to unpark is held in successor, which is normally
+        * just the next node.  But if cancelled or apparently null,
+        * traverse backwards from tail to find the actual
+        * non-cancelled successor.
+        */
+    Node s = node.next;
+    if (s == null || s.waitStatus > 0) {
+        s = null;
+        for (Node t = tail; t != null && t != node; t = t.prev)
+            if (t.waitStatus <= 0)
+                s = t;
+    }
+    if (s != null)
+        LockSupport.unpark(s.thread);
+}
+```
+
+### condition
+> 
+>
+>
+>
+>
+#### await
+>
+>
+```java
+
+public final void await() throws InterruptedException {
+    if (Thread.interrupted())
+        throw new InterruptedException();
+    Node node = addConditionWaiter();
+    int savedState = fullyRelease(node);
+    int interruptMode = 0;
+    while (!isOnSyncQueue(node)) {
+        LockSupport.park(this);
+        if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
+            break;
+    }
+    if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
+        interruptMode = REINTERRUPT;
+    if (node.nextWaiter != null) // clean up if cancelled
+        unlinkCancelledWaiters();
+    if (interruptMode != 0)
+        reportInterruptAfterWait(interruptMode);
+}
+```
+
+#### addConditionWaiter
+
+#### fullyRelease
+
+#### isOnSyncQueue
+
+#### signal
+>
+>
+>
+>
+>
+```java
+
+public final void signal() {
+    if (!isHeldExclusively())
+        throw new IllegalMonitorStateException();
+    Node first = firstWaiter;
+    if (first != null)
+        doSignal(first);
+}
+```
+
+### 共享锁
