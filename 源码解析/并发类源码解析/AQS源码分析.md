@@ -43,6 +43,13 @@
 
 ## 原理简析
 
+>   `AQS`作为常用的`ReentrantLock`，`ReentrantReadWriteLock`中必不可少的通用组件的父类，其封装了在同步队列`park`等待，在被唤醒后重试获取锁的动作；以及`Condition`队列的逻辑。`state`参数标识锁的持有释放。 
+>1. `AQS`为独占锁开放了拓展方法`tryAcquire`，`tryRelease`，让子类进行拓展加锁逻辑，例如我们使用的`ReentrantLock`的公平锁/非公平锁，其差异化就在方法`tryAcquire`。  
+>2. `AQS`为共享锁开放了拓展方法`tryAcquireShared`，`tryReleaseShared`，让子类进行拓展加锁逻辑，例如我们使用的`ReentrantReadWriteLock`的读写锁就是由此拓展而来。  
+>3. `AQS`中维护了一条双向链表的同步队列，获取锁失败的节点，将进入同步队列中，等待重试获取锁。在释放锁时，如果当前节点的`waitStatus != 0`，则表示后继节点等待被唤醒，此时将唤醒该线程再次竞争获取锁。
+>4. `Condition`的`await/signal/signalAll`使用方式类似于`Object`的`wait/notify/notifyAll`，在`condition`内部维护了一条双向链表的条件队列，在await期间，会向`condition`的链表中插入一个节点X，并释放所有锁，然后`park`当前线程X，直到其他线程`notify/notifyAll`时，会将X节点再插入同步队列中，X线程被唤醒后，重试获取锁。
+
+
 ![AQS](../../image/AQS.png)
 
 ## 源码分析
@@ -310,3 +317,25 @@ public final void signal() {
 ```
 
 ### 共享锁
+
+
+#### acquireShared
+```java
+
+public final void acquireShared(int arg) {
+    if (tryAcquireShared(arg) < 0)
+        doAcquireShared(arg);
+}
+```
+
+#### releaseShared
+```java
+
+public final boolean releaseShared(int arg) {
+    if (tryReleaseShared(arg)) {
+        doReleaseShared();
+        return true;
+    }
+    return false;
+}
+```
