@@ -17,7 +17,7 @@ final ConditionObject newCondition() {
 |lastWaiter|Node|队列尾节点|
 
     与AQS同步等待队列的双向链表不同，Condition中的队列使用的是单向链表，以Node属性nextWaiter连接而成。
-    但我们仍要注意Node类中的属性nextWaiter是非volatile字段，其可见性需要其他逻辑支撑
+    但我们仍要注意Node类中的属性nextWaiter是非volatile字段，这是因为Condition需要在获取锁成功后使用，加/解锁动作保证了可见性
 
 ## Conditon.await
     该方法必须在获取锁的情况下执行。添加到condition等待队列，并释放锁，然后park当前线程，等待被signal后，重新进入AQS的同步等待队列重新获取锁

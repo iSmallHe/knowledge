@@ -1,5 +1,14 @@
 # Semaphore源码解析
-## Semaphore使用
+
+## 重要属性
+|name|value|description|
+|---|---|:---|
+|sync|FairSync/NonfairSync|凭证许可：共享锁|
+
+## 原理简析
+> `Semaphore`的实现依赖于内部类共享锁`Sync`，凭证数量则由`Semaphore`的构造方法`permits`决定，每次`acquire`，`凭证数量 - n`；每次`release`时，`凭证数量 + n`。只有`凭证数量 > 0`时，才能获取许可凭证。
+
+## 使用示例
 ```java
 public static void main(String[] args) {
         ExecutorService executorService = Executors.newCachedThreadPool();
@@ -29,8 +38,8 @@ public static void main(String[] args) {
         Thread.sleep(1000);
     }
 ```
-## Semaphore源码解析
-### Semaphore获取许可acquire
+## 源码解析
+### acquire
 ```java
 public void acquire() throws InterruptedException {
         sync.acquireSharedInterruptibly(1);
@@ -100,7 +109,7 @@ final int nonfairTryAcquireShared(int acquires) {
     }
 }
 ```
-### Semaphore释放许可release
+### release
 ```java
 //Semaphore类中的方法
 public void release() {

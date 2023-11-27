@@ -1,5 +1,10 @@
 # CountDownLatch源码解析
-## CountDownLatch使用
+
+## 原理简述
+
+> 使用`AQS`的子类`Sync`以共享锁的方式实现栅栏：在`Sync`的构造方法中使用`setState(count)`，在`await`方法中实际调用的是`tryAcquireShared`方法：`(getState() == 0) ? 1 : -1`，`countDown`方法：`sync.releaseShared(1)`。如果`state==0`时，才视为获取锁成功，这意味着调用`await`方法的线程都将被`park`，必须等待调用`countDown`的次数达到`count`时，才会以共享锁的方式链式唤醒所有线程
+
+## 使用示例
 ```java
 public class Test {
 
@@ -52,9 +57,9 @@ class Player implements Runnable{
 }
 
 ```
-## CountDownLatch原理解析
+## 源码解析
 CountDownLatch是借助AQS实现栅栏的，但是不可复用。
-### CountDownLatch内部类
+### 内部类Sync
 ```java
 //CountDownLatch内部类
     private static final class Sync extends AbstractQueuedSynchronizer {
@@ -86,7 +91,7 @@ CountDownLatch是借助AQS实现栅栏的，但是不可复用。
     }
 
 ```
-### CountDownLatch类 await解析
+### await解析
 **await方法：其主要目的是将添加一个节点放置锁等待队列中，然后阻塞线程，直到countDown方法将state减少至0时，唤醒被阻塞线程**
 ```java
 //CountDownLatch类中方法。等待
@@ -130,7 +135,7 @@ private void doAcquireSharedInterruptibly(int arg)
     }
 }
 ```
-### CountDownLatch类countDown方法解析
+### countDown解析
 **countDown方法：其主要目的是减少state，当state减少至0时，唤醒等待线程**
 ```java
 //释放锁

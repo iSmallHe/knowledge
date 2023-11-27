@@ -1,5 +1,20 @@
 # CyclicBarrier源码解析
-## CyclicBarrier使用
+
+## 重要属性
+|name|value|description|
+|---|---|:---|
+|parties|final int|总屏蔽线程数量|
+|lock|ReentrantLock|锁|
+|trip|lock.newCondition()|条件：用于park线程|
+|barrierCommand|Runnable|屏障破开前执行的任务|
+|generation|Generation|迭代|
+|count|int|当前剩余屏蔽线程数量|
+
+## 原理简析
+
+> `CyclicBarrier`的原理就是使用`ReentrantLock`配合`Condition`，在调用`CyclicBarrier.await`时，`--count`，使用`condition.await`，`park`当前线程。等到最后一次调用`CyclicBarrier.await`达到`count == 0`的条件时，则调用`condition.signalAll`唤醒所有线程，迭代`generation = new Generation`，重置`count = parties`，以此实现可重复使用。
+
+## 使用示例
 ```java
 public class CyclicbarrierTest {
 
@@ -60,7 +75,7 @@ public class CyclicbarrierTest {
     }
 }
 ```
-## CyclicBarrier源码解析
+## 源码解析
 **CyclicBarrier是借助ReentrantLock和Condition实现的**
 ```java
 public int await() throws InterruptedException, BrokenBarrierException {
