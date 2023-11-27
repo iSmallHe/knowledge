@@ -4,11 +4,11 @@
 |name|value|description|
 |---|---|:---|
 |parties|final int|总屏蔽线程数量|
-|lock|ReentrantLock|锁|
+|lock|ReentrantLock|可重入锁|
 |trip|lock.newCondition()|条件：用于park线程|
 |barrierCommand|Runnable|屏障破开前执行的任务|
 |generation|Generation|迭代|
-|count|int|当前剩余屏蔽线程数量|
+|count|int|当前剩余屏蔽线程数量。初始值=parties；等于0时，将唤醒所有线程|
 
 ## 原理简析
 
