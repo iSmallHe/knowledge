@@ -25,9 +25,9 @@
 |SHARED|Node|共享模式|
 |EXCLUSIVE|null|独占模式|
 |CANCELLED|1|节点取消|
-|SIGNAL|-1|信号：表示需要唤醒下一个节点|
+|SIGNAL|-1|信号：表示需要唤醒下一个节点，独占/共享锁都依赖于此状态唤醒|
 |CONDITION|-2|条件：表示当前节点是condition等待队列的节点|
-|PROPAGATE|-3|传播：共享模式下传播唤醒|
+|PROPAGATE|-3|传播：共享模式下传播唤醒：快速、高效地唤醒后继节点（暂时存疑）|
 |waitStatus|volatile int|CANCELLED/SIGNAL//CONDITION/PROPAGATE：当前节点状态|
 |prev|volatile Node|前节点|
 |next|volatile Node|后节点|
@@ -74,7 +74,11 @@ static void selfInterrupt() {
 ```
 
 #### tryAcquire
->尝试获取独占锁，用于子类拓展；可分为 公平/非公平获取锁
+>尝试获取独占锁，用于子类拓展：
+>1. `ReentrantLock`的公平/非公平可独占锁
+>2. `ReentrantReadWriteLock`的写锁
+>3. `ThreadPoolExecutor`的`Worker`线程
+>
 ```java
 protected boolean tryAcquire(int arg) {
     throw new UnsupportedOperationException();
