@@ -69,12 +69,11 @@ http {
 ## HTTP
 
 ## Server
+
 **参数解析**
-|name|description|example|
-|---|---|:---|
-|listen|监听的端口，后可加 ip 地址、端口或主机名，不加端口时，默认监听 80 端口。|listen 8080;listen 127.0.0.1:8080;listen*:8080|
-|server_name|server_name 用于与 http 请求 header 头部的 Host 匹配。注意：后可跟多个主机名，主机名也可使用通匹符|*.test.com|
-|location|路径匹配|location /test {}|
+1. `listen`：监听的端口，后可加 ip 地址、端口或主机名，不加端口时，默认监听 80 端口。示例：`listen 8080`;`listen 127.0.0.1:8080`;`listen*:8080`
+2. `server_name`：server_name 用于与 http 请求 header 头部的 Host 匹配。注意：后可跟多个主机名，主机名也可使用通匹符。示例：`*.test.com`
+3. `location`：路径匹配。示例：`location /test {}`
 
 ## Location
 
