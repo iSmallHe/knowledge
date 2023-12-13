@@ -1,6 +1,6 @@
 # maven
 
-![build](../image/maven.png ':size=500x250')
+![build](../image/maven.png)
 
 ## 目录结构
 
