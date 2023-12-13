@@ -1,5 +1,7 @@
 # Netty架构解析
 
+![netty](../image/netty.png)
+
 对于解析netty架构，我们需要从大的角度去分析netty的架构，首先我们从架构的顶层设计着手
 1. EventLoopGroup
 2. EventLoop
