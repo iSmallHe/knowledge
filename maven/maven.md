@@ -189,6 +189,14 @@ Maven中的坐标使用三个『向量』在『Maven的仓库』中唯一的定�
 
 >Maven 依赖传递是指在一个 Maven 项目中，当一个依赖项（例如 A）依赖于另一个依赖项（例如 B），Maven 会自动将 B 的依赖项传递给 A。这意味着，当 A 引入了 B，Maven 会自动将 B 所依赖的所有其他依赖项也引入到 A 中。
 
+### 依赖优先级
+
+|priority|description|example|
+|---|---|:---|
+|最短路径原则| 不同级依赖, 选择路径最短（对于传递性依赖和顶级依赖都生效，只要是不同级）|一个项目A依赖了两个jar包，其中A-B-C-X(1.0) ， A-D-X(2.0)。由于X(2.0)路径最短，所以项目使用的是X(2.0)。|
+|声明优先原则| 同级依赖,先声明的覆盖后声明的（对于传递性依赖）|如果A-B-X(1.0) ，A-C-X(2.0) 这样的路径长度一样怎么办呢？这样的情况下，maven会根据pom文件声明的顺序加载，如果先声明了B，后声明了C，那就最后的依赖就会是X(1.0)。|
+|覆写优先原则| 子pom内声明的优先于父pom中的依赖。||
+
 ### 依赖排除
 
   Optional和Exclusions都是用来排除jar包依赖使用的，两者在使用上却是不同的。Optional表示可选择的，Exclusions表示排除
@@ -214,13 +222,77 @@ Maven中的坐标使用三个『向量』在『Maven的仓库』中唯一的定�
 </dependencies>
 ```
 
+## 模块化
+
+### module
+
+#### 父模块
+
+>父模块中指定子模块
+
+```xml
+<modules>
+    <module>winseco-gateway</module>
+    <module>winseco-common</module>
+    <module>winseco-module</module>
+    <module>winseco-auth</module>
+</modules>
+```
+
+#### 子模块
+
+>在当前项目的pom.xml中可以指定父模块，此时将继承父模块的依赖，插件，版本管理等等
+```xml
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.3.12.RELEASE</version>
+    <relativePath/> <!-- lookup parent from repository -->
+</parent>
+```
+`relativePath`：表示父模块的POM文件路径，
+1. 默认值：`../pom.xml`，即从上级目录中获取`pom.xml`文件
+2. `<relativePath/>`：设定一个空值，这意味着将始终从仓库中获取，不从本地路径获取。很常见的场景就是使用springboot的时候
+3. `<relativePath>/test/pom.xml<relativePath/>`：从指定路径中获取父POM
+
+#### 版本管理
+
+> 在父模块中定义好dependencyManagement后，子模块引用依赖dependency时，可不加version，此时该依赖的版本为父模块中定义的版本
+
+```xml
+<!-- 参数配置 -->
+<properties>
+  <winseco.version>2.2.9.RELEASE</winseco.version>
+</properties>
+<!-- 依赖版本管理 -->
+<dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.winseco.cloud</groupId>
+                <artifactId>winseco-common-control-ball</artifactId>
+                <version>${winseco.version}</version>
+            </dependency>
+        </dependencies>
+</dependencyManagement>
+```
+
+### 打包
+
+>Maven多模块工程打包指定模块工程执行如下命令：
+`mvn clean package -pl winseco-module\winseco-system\system-web -am -Dmaven.test.skip=true`
+
+参数说明：
+- `-pl --projects` ：构建制定的模块，模块间用逗号分隔；
+- `-am --also-make` ：同时构建所列模块的依赖模块；
+- `-amd -also-make-dependents` ：同时构建依赖于所列模块的模块；
+- `-rf -resume-from` ：从指定的模块恢复反应堆。
+
 ## 构建
 
 ### 生命周期
 
 >maven拥有三套相互独立的生命周期，分别是clean，default和site
 
-![life](../image/mvn_default_life.png)
 
 1. clean：clean生命周期的目的是清理项目
     1. pre-clean 执行一些清理前需要完成的工作；
@@ -233,6 +305,7 @@ Maven中的坐标使用三个『向量』在『Maven的仓库』中唯一的定�
     3. package ：接收编译好的代码，打包成可以发布的格式，如jar和war；
     4. install： 将包安装到本地仓库，供其他maven项目使用；
     5. deploy ：将最终的包复制到远程仓库，供其他开发人员或maven项目使用；
+![default](../image/mvn_default_life.png)
 
 3. site：site生命周期的目的是建立和发布项目站点，maven能够基于pom文件所包含的项目信息，自动生成一个友好站点，方便团队交流和发布项目信息
     1. site ：生成项目站点文档；
