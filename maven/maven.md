@@ -147,7 +147,7 @@ Maven中的坐标使用三个『向量』在『Maven的仓库』中唯一的定�
 1. groupId：公司或组织的 id，即公司或组织域名的倒序，通常也会加上项目名称。示例：org.springframework.boot
 2. artifactId：一个项目或者是项目中的一个模块的 id，即模块的名称，将来作为 Maven 工程的工程名。示例：spring-boot-starter-parent
 3. version：版本号。示例：2.3.12.RELEASE
-4. packaging：默认jar
+4. packaging：默认jar。jar/war/pom
 ```
 <dependency>
   <groupId>org.springframework.boot</groupId>
