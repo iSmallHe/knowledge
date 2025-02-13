@@ -1,6 +1,104 @@
 # Mybatis源码解析
 
-## 简单使用
+## 一、设计
+
+MyBatis 是一款流行的 Java 持久层框架，它通过 SQL 映射文件和注解将 SQL 语句与 Java 对象关联起来。MyBatis 的源码结构复杂，涉及到许多重要的模块和组件。下面是 MyBatis 源码解析的基本框架，帮助你理解它的核心设计和关键流程。
+
+### 1.1 **MyBatis 核心设计思想**
+MyBatis 的核心思想是通过 SQL 映射文件（XML 或注解）来编写 SQL 语句，而不是依赖于 ORM（如 Hibernate）自动生成 SQL。这样开发者可以完全控制 SQL 的编写，并通过映射关系将数据库的查询结果和 Java 对象关联。
+
+### 1.2 **MyBatis 重要组件**
+MyBatis 的源码可以分为几个核心模块，其中每个模块负责不同的功能：
+
+- **SqlSessionFactory**: 这是 MyBatis 中最重要的组件，负责创建 `SqlSession` 实例。它是通过读取配置文件（如 `mybatis-config.xml`）和映射文件（如 `mapper.xml`）来初始化和构建的。
+  
+- **SqlSession**: 这是 MyBatis 提供的与数据库交互的入口，提供了执行 SQL 语句、获取映射器等方法。
+
+- **Mapper 代理**: MyBatis 使用动态代理来创建 Mapper 接口的实现类，开发者通过调用接口中的方法，实际执行对应的 SQL 查询。
+
+- **Configuration**: 用于存储 MyBatis 的配置信息（如数据库连接、缓存设置等），它是 `SqlSessionFactory` 的核心组成部分。
+
+- **Executor**: 负责执行 SQL 语句并返回结果。它的实现有多种，最常用的是 `SimpleExecutor`、`ReuseExecutor` 和 `BatchExecutor`，分别适用于不同的执行策略。
+
+- **MappedStatement**: 用于封装 SQL 语句及其相关信息（如参数映射、返回结果映射等），每一个 SQL 映射都会对应一个 `MappedStatement` 对象。
+
+### 1.3 **MyBatis 启动过程**
+MyBatis 启动的过程可以通过以下几个步骤来理解：
+
+1. **加载 MyBatis 配置文件**：
+   - MyBatis 从 `mybatis-config.xml` 配置文件中读取配置。
+   - 解析 XML 配置，初始化 `Configuration` 对象，加载数据库连接池、插件、类型处理器等信息。
+
+2. **创建 `SqlSessionFactory`**：
+   - `SqlSessionFactory` 是通过 `Configuration` 对象构建的。它的作用是管理 `SqlSession` 的创建。
+
+3. **创建 `SqlSession`**：
+   - `SqlSession` 是数据库操作的核心，通过 `SqlSessionFactory` 创建。
+   - `SqlSession` 包含了执行 SQL 的方法，开发者通过 `SqlSession` 与数据库交互。
+
+### 1.4 **Mapper 接口与代理模式**
+MyBatis 使用了动态代理来为每个 Mapper 接口生成实现类。开发者通过定义接口，并通过 `@Mapper` 注解或 XML 文件来配置 SQL 语句。
+
+- **Mapper 接口**：通常是一个接口，每个方法对应一条 SQL 语句。
+- **动态代理**：MyBatis 会通过 JDK 动态代理（或 CGLIB 代理）创建接口的实现类。通过代理类，开发者可以直接调用接口方法，而 MyBatis 会自动执行相应的 SQL。
+
+```java
+@Mapper
+public interface UserMapper {
+    User findById(int id);
+}
+```
+
+MyBatis 会根据这个接口和 XML 配置，动态生成实现类并执行相应的 SQL 查询。
+
+### 1.5 **SQL 执行流程**
+SQL 执行的基本流程可以分为几个阶段：
+
+1. **构建 SQL 请求**：
+   - MyBatis 会根据 Mapper 接口的方法以及传入的参数构建 SQL 请求。
+   - 在执行 SQL 前，MyBatis 会使用 `ParameterHandler` 处理参数。
+
+2. **执行 SQL**：
+   - 根据 `Executor` 类型的不同，MyBatis 会选择不同的执行策略。例如，`SimpleExecutor` 每次执行 SQL 时都会创建新的 `PreparedStatement` 对象，而 `ReuseExecutor` 会复用已创建的 `PreparedStatement`。
+   - MyBatis 使用 JDBC 执行 SQL 请求，并将结果映射为 Java 对象。
+
+3. **结果映射**：
+   - MyBatis 会将查询结果通过 `ResultHandler` 处理并映射为 Java 对象。映射过程中会根据映射文件中配置的映射规则（如字段名称、Java 类型等）进行数据转换。
+
+4. **返回结果**：
+   - 最终，执行完 SQL 后，`SqlSession` 会返回查询结果，通常是一个 Java 对象、集合或原始数据类型。
+
+### 1.6 **缓存机制**
+MyBatis 提供了一级缓存和二级缓存。
+
+- **一级缓存**：与 `SqlSession` 绑定，默认开启。当同一个 `SqlSession` 执行相同的查询时，结果会被缓存下来，避免重复查询数据库。
+  
+- **二级缓存**：与 `SqlSessionFactory` 绑定，可以在不同的 `SqlSession` 之间共享缓存。二级缓存是可选的，可以在配置文件中开启并配置。
+
+### 1.7 **MyBatis 配置文件**
+MyBatis 的配置文件（如 `mybatis-config.xml`）包含了 MyBatis 的核心配置，包括：
+
+- **数据库连接池配置**：如 JDBC 驱动、数据库 URL、用户名、密码等。
+- **插件配置**：MyBatis 支持插件机制，可以自定义插件来扩展 MyBatis 的功能。
+- **类型处理器配置**：MyBatis 支持多种 Java 类型和数据库类型之间的映射。
+- **缓存配置**：开启一级缓存和二级缓存。
+- **日志配置**：可以配置 MyBatis 使用不同的日志框架。
+
+### 1.8 **源码中的关键类**
+以下是 MyBatis 中一些关键类和它们的作用：
+
+- `SqlSessionFactoryBuilder`：负责构建 `SqlSessionFactory`，通过读取配置文件初始化。
+- `SqlSessionFactory`：负责管理 `SqlSession` 的创建。
+- `SqlSession`：数据库操作的核心接口，提供对数据库的 CRUD 操作。
+- `Configuration`：MyBatis 的配置类，存储所有配置信息。
+- `MappedStatement`：封装 SQL 语句、参数映射和返回结果的类。
+- `Executor`：执行 SQL 语句的策略模式接口，负责执行 SQL 和处理事务。
+- `ParameterHandler` 和 `ResultHandler`：分别负责处理 SQL 参数和结果的映射。
+
+### 1.9 **总结**
+MyBatis 是一个高度灵活的持久化框架，它通过 SQL 映射文件和动态代理来实现数据库操作的映射。通过对 MyBatis 源码的解析，我们可以看到它的核心设计理念是通过配置文件灵活配置 SQL 执行策略、缓存和参数映射，极大地提高了开发效率和 SQL 管理的可维护性。
+
+## 二、简单使用
 
 ```java
 public static void main(String[] args) {
@@ -22,7 +120,7 @@ public static void main(String[] args) {
 }
 ```
 
-## 解析配置文件
+## 三、解析配置文件
     1. 创建解析类XMLConfigBuilder
     2. 解析配置文件: parser.parse()
     3. 创建默认的DefaultSqlSessionFactory
@@ -54,7 +152,7 @@ public static void main(String[] args) {
     }
 ```
 
-### XMLConfigBuilder
+### 3.1 XMLConfigBuilder
     XMLConfigBuilder extends BaseBuilder
     XMLConfigBuilder 使用XPathParser解析文件生成document,此时仅解析xml文件为DOM树,并未实际解析生成配置信息
 ```java
@@ -125,7 +223,7 @@ public static void main(String[] args) {
     }
 ```
 
-### 解析DOM
+### 3.2 解析DOM
     解析Document文件,将配置信息填充至Configuration类中
     1. 解析根节点configuration
     2. 解析根节点下的子节点
@@ -180,7 +278,7 @@ public static void main(String[] args) {
     }
 ```
 
-## SqlSession
+## 四、SqlSession
     1. 获取数据库连接环境
     2. 根据数据库获取事务工厂类,默认创建ManagedTransactionFactory,及生成ManagedTransaction  
     3. 根据事务隔离级别 创建事务
@@ -207,14 +305,14 @@ public static void main(String[] args) {
     }
 ```
 
-## 结构分析
+## 五、结构分析
 
     主要来看mybatis分为几个部分
 
-### Configuration
+### 5.1 Configuration
     该类保存了整个mybatis所有的配置信息
 
-### 配置解析
+### 5.2 配置解析
 
     BaseBuilder的子类, 主要有  
     1.1 XMLConfigBuilder: 用于解析mybatis的配置文件  
@@ -229,11 +327,11 @@ public static void main(String[] args) {
     1.8 MapperProxyFactory: 使用jdk的Proxy生成mapper接口的代理类  
     1.9 MapperProxy:　MapperProxy实现了接口InvocationHandler, 动态代理类的主要逻辑  
 
-### SqlSessionFactory   
+### 5.3 SqlSessionFactory   
     默认使用DefaultSqlSessionFactory, 用于创建SqlSession
-### SqlSession  
+### 5.4 SqlSession  
     默认使用DefaultSqlSession
-### 动态代理  
+### 5.5 动态代理  
     mapper的动态代理的工厂类:MapperProxyFactory, 存放于knownMappers
     InvocationHandler的实现类MapperProxy, 其主要代理逻辑在这里
 
@@ -363,10 +461,10 @@ public Object execute(SqlSession sqlSession, Object[] args) {
     return result;
 }
 ```
-### 参数绑定  
+### 5.6 参数绑定  
     参数绑定在mapper执行方法时的MapperProxy.invoke中, 此时会创建MapperMethod类, 生成ParamNameResolver进行解析@Param注解, 存放于SortedMap<Integer, String> names中
 
-#### 参数名称解析器
+#### 5.6.1 参数名称解析器
     1. 首先是创建MapperMethod，这其中会创建MethodSignature类
     2. 在MethodSignature类的构造方法中会生成参数名称解析器ParamNameResolver，用于处理注解@Param，如果没有则默认使用参数名称
 
@@ -434,7 +532,7 @@ public Object execute(SqlSession sqlSession, Object[] args) {
     }
 
 ```
-#### 参数转换
+#### 5.6.2 参数转换
     Object param = method.convertArgsToSqlCommandParam(args);
     在mybatis内部对原生jdbc的参数绑定，需要用到map存储数据，这里是将参数转储到ParamMap中
 
@@ -469,7 +567,7 @@ public Object execute(SqlSession sqlSession, Object[] args) {
         }
     }
 ```
-#### 参数绑定
+#### 5.6.3 参数绑定
     1. 在生成StatementHandler的时候，会创建DefaultParameterHandler
     2. 参数绑定的时机在 prepareStatement(handler, ms.getStatementLog())，此时会调用DefaultParameterHandler的setParameters，进行参数绑定
 ```java
@@ -547,7 +645,7 @@ public Object execute(SqlSession sqlSession, Object[] args) {
 ```
 
 
-### 结果映射  
+### 5.7 结果映射  
     ResultSetHandler结果映射类, 默认使用 DefaultResultSetHandler 进行处理
     结果映射中比较复杂的就是嵌套ResultMap的使用了。这部分逻辑主要在于需要判断行数据是否相同，使用ResultMap中的Id列标识，如果没有，则用该ResultMap中的所有列进行判断
 ```java
