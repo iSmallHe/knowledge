@@ -351,8 +351,15 @@ Annotation value: This is the parent class annotation
 
 ## 三、加载Configuration
 
+1. 防止容器重复加载配置类相关的`BeanDefinition`
+2. 获取容器中所有的配置类名称
+3. 配置类按`order`排序，设置`BeanName`生成器，设置环境，不过由于实现了接口`EnvironmentAware`，所以它是能直接拿到`environment`
+4. 创建`@Configuration`类的解析器`ConfigurationClassParser`，读取器`ConfigurationClassBeanDefinitionReader`
+5. 循环处理：解析配置类，读取器读取配置类相关的`BeanDefinition`
 ```java
+//ConfigurationClassPostProcessor
 public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
+    // 防止容器重复加载BeanDefinition
     int registryId = System.identityHashCode(registry);
     if (this.registriesPostProcessed.contains(registryId)) {
         throw new IllegalStateException(
@@ -444,10 +451,14 @@ public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
                     registry, this.sourceExtractor, this.resourceLoader, this.environment,
                     this.importBeanNameGenerator, parser.getImportRegistry());
         }
+        // 将该配置类所有关联加载的BeanDefinition全部加载到Spring容器中（1.配置类的@Bean方法；2.@ImportResource导入的；3.@Import导入的ImportBeanDefinitionRegistrar；4.配置类）
         this.reader.loadBeanDefinitions(configClasses);
         alreadyParsed.addAll(configClasses);
 
+        // 清除已解析的配置候选类
         candidates.clear();
+
+        // 如果当前容器中的类定义数量大于当前要加载的配置候选类（可能的情况：1.配置类的@Bean方法；2.@ImportResource导入的；3.@Import导入的ImportBeanDefinitionRegistrar。因为这些情况下解析器无法直接解析，所以在下面的逻辑下过滤掉已处理的配置类，循环进行处理新的配置类的解析）
         if (registry.getBeanDefinitionCount() > candidateNames.length) {
             String[] newCandidateNames = registry.getBeanDefinitionNames();
             Set<String> oldCandidateNames = new HashSet<>(Arrays.asList(candidateNames));
@@ -468,7 +479,7 @@ public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
         }
     }
     while (!candidates.isEmpty());
-
+    // 注册ImportRegistry作为容器的bean，为了支持 ImportAware @Configuration 类，parser.getImportRegistry()返回的就是import栈
     // Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
     if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
         sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
@@ -486,7 +497,7 @@ public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
 
 #### 3.1.1 构造器
 
-1. ConfigurationClassParser的构造方法如下所示，我们需要重点关注ComponentScanAnnotationParser，该类主要用于加载注解@Component相关的类
+1. `ConfigurationClassParser`的构造方法如下所示，我们需要重点关注`ComponentScanAnnotationParser`，该类主要用于加载注解`@ComponentScan`相关的类
 
 ```java
 ConfigurationClassParser parser = new ConfigurationClassParser(
@@ -510,8 +521,8 @@ public ConfigurationClassParser(MetadataReaderFactory metadataReaderFactory,
 
 #### 3.1.2 解析
 
-1. 解析BeanDefinition
-2. 当前@Import导入的类是DeferredImportSelector时，不会直接在parse方法中处理，而是会在解析的最后进行延迟处理
+1. 解析配置类的`BeanDefinition`
+2. 当前`@Import`导入的类是`DeferredImportSelector`时，不会直接在`parse`方法中处理，而是会在解析的最后进行延迟处理
 ```java
 public void parse(Set<BeanDefinitionHolder> configCandidates) {
     for (BeanDefinitionHolder holder : configCandidates) {
@@ -541,7 +552,7 @@ public void parse(Set<BeanDefinitionHolder> configCandidates) {
 }
 ```
 
-3. 首先使用conditionEvaluator判断当前配置类是否满足注解@Conditional的条件，不满足时跳过。然后递归处理配置类及其父类
+3. 首先使用`conditionEvaluator`判断当前配置类是否满足注解`@Conditional`的条件，不满足时跳过。然后递归处理配置类及其父类
 ```java
 protected final void parse(AnnotationMetadata metadata, String beanName) throws IOException {
     processConfigurationClass(new ConfigurationClass(metadata, beanName), DEFAULT_EXCLUSION_FILTER);
@@ -621,7 +632,7 @@ public boolean shouldSkip(@Nullable AnnotatedTypeMetadata metadata, @Nullable Co
 }
 ```
 
-4. 处理配置类: 1.处理内部配置类；2.处理@PropertySource；3.处理@ComponentScan；4.处理@Import；5.处理@ImportResource；6.处理@Bean methods；7.处理接口的默认方法；8.最后处理父类
+4. 处理配置类: 1.处理内部配置类；2.处理`@PropertySource`；3.处理`@ComponentScan`；4.处理`@Import`；5.处理`@ImportResource`；6.处理`@Bean methods`；7.处理接口的默认方法；8.最后处理父类
 
 ```java
 protected final SourceClass doProcessConfigurationClass(
@@ -750,6 +761,8 @@ private void processMemberClasses(ConfigurationClass configClass, SourceClass so
 
 ##### 3.1.2.2 处理@PropertySource
 
+>`@PropertySource` 注解用于加载外部的属性文件。它通常用于将一个或多个配置文件中的属性加载到 Spring 环境中，以便可以通过 `@Value` 或 `Environment` 获取这些属性。
+
 1. 只有当当前`environment`是`ConfigurableEnvironment`或其子类时，才能处理`@PropertySource`
 ```java
 // Process any @PropertySource annotations
@@ -766,7 +779,7 @@ for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRe
 }
 ```
 
-2. 解析@PropertySource，并加载配置文件
+2. 解析`@PropertySource`，并加载配置文件
 ```java
 private void processPropertySource(AnnotationAttributes propertySource) throws IOException {
     // 获取name属性
@@ -814,8 +827,8 @@ private void processPropertySource(AnnotationAttributes propertySource) throws I
 
 ##### 3.1.2.3 处理@ComponentScan
 
-1. 获取配置类的注解@ComponentScan
-2. 使用ComponentScanAnnotationParser解析路径下的所有@Component
+1. 获取配置类的注解`@ComponentScan`
+2. 使用`ComponentScanAnnotationParser`解析路径下的所有需要加入`Spring`容器的`bean`(例如：`@Component`)
 3. 判断扫描出来的类中是否存在配置类，如果是配置类，则再进行配置类解析
 ```java
 // Process any @ComponentScan annotations
@@ -845,10 +858,10 @@ if (!componentScans.isEmpty() &&
 ```
 **详细分析下扫描Component过程**
 
-1. 创建类路径下Component的BeanDefinition扫描器ClassPathBeanDefinitionScanner，并生成bean过滤器(最重要的AnnotationTypeFilter)
-2. 设置扫描器的bean名称生成器
-3. 设置包含bean过滤器
-4. 设置排除bean过滤器
+1. 创建类路径下`Component`的`BeanDefinition`扫描器`ClassPathBeanDefinitionScanner`，并生成`bean`过滤器，默认情况下会加入最重要的`new AnnotationTypeFilter(Component.class)`来过滤出`@Component`相关的`bean`
+2. 设置扫描器的`bean`名称生成器
+3. 设置包含`bean`过滤器
+4. 设置排除`bean`过滤器
 5. 设置扫描路径
 6. 正式扫描
 ```java
@@ -955,9 +968,9 @@ protected void registerDefaultFilters() {
     }
 }
 ```
-7. 扫描路径下符合excludeFilters，includeFilters要求的类，并生成BeanDefinition
-8. 处理这些BeanDefinition，如果有注解@Lazy；@Primary；@DependsOn；@Role；@Description，则解析属性设置到BeanDefinition
-9. 将component的BeanDefinition注册到容器里
+7. 扫描路径下符合`excludeFilters`，`includeFilters`要求的类，并生成`BeanDefinition`
+8. 处理这些`BeanDefinition`，如果有注解`@Lazy`；`@Primary`；`@DependsOn`；`@Role`；`@Description`，则解析属性设置到`BeanDefinition`
+9. 将`component`的`BeanDefinition`注册到容器里
 
 ```java
 //ClassPathBeanDefinitionScanner
@@ -1081,6 +1094,12 @@ protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
 
 ##### 3.1.2.4 处理@Import
 
+1. 判断是否存在循环`import`的问题
+2. `import`的类只处理三类：`ImportSelectorl`；`ImportBeanDefinitionRegistrar`；配置类
+3. `ImportSelectorl`：a. 首先会判断是否是`DeferredImportSelector`，来延迟处理`import`；b. 会将`ImportSelectorl.selectImports`返回的类名数组当做需要import的类，再次进入`import`处理流程
+4. `ImportBeanDefinitionRegistrar`：直接向`registry`中注册`BeanDefinition`的拓展入口
+5. 当做普通配置类进行处理，如果不是，也会当做普通`bean`加入容器
+
 ```java
 // Process any @Import annotations
 processImports(configClass, sourceClass, getImports(sourceClass), filter, true);
@@ -1122,7 +1141,7 @@ private void processImports(ConfigurationClass configClass, SourceClass currentS
                         String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
                         // 生成SourceClass
                         Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames, exclusionFilter);
-                        // 再次处理import，相当于递归处理import
+                        // 处理ImportSelector需要import的类，
                         processImports(configClass, currentSourceClass, importSourceClasses, exclusionFilter, false);
                     }
                 }
@@ -1159,5 +1178,127 @@ private void processImports(ConfigurationClass configClass, SourceClass currentS
             this.importStack.pop();
         }
     }
+}
+```
+
+##### 3.1.2.5 处理@ImportResource
+
+> `@ImportResource` 注解用于加载`Spring`的`XML`配置文件(`XML`描述`Spring`容器中的`Bean`、依赖注入、事务管理、`AOP`配置等等)。它通常用于向`Spring`容器导入一个或多个`XML`配置文件。这个注解对于那些已经有大量`XML`配置的遗留系统特别有用，可以逐步迁移到`Java`配置。
+
+1. 解析注解@ImportResource属性
+2. 并将解析后的资源添加到`importedResources`中，后续在`loadBeanDefinitionsForConfigurationClass`中会处理
+```java
+// Process any @ImportResource annotations
+AnnotationAttributes importResource =
+        AnnotationConfigUtils.attributesFor(sourceClass.getMetadata(), ImportResource.class);
+if (importResource != null) {
+    String[] resources = importResource.getStringArray("locations");
+    Class<? extends BeanDefinitionReader> readerClass = importResource.getClass("reader");
+    for (String resource : resources) {
+        String resolvedResource = this.environment.resolveRequiredPlaceholders(resource);
+        configClass.addImportedResource(resolvedResource, readerClass);
+    }
+}
+
+```
+
+##### 3.1.2.6 处理@Bean方法
+
+1. 解析配置类带`@Bean`注解的方法，并添加到`beanMethods`中
+2. 处理配置类实现的接口上带有`@Bean`注解的方法，并添加到`beanMethods`中
+
+```java
+// Process individual @Bean methods
+Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
+for (MethodMetadata methodMetadata : beanMethods) {
+    configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
+}
+
+// Process default methods on interfaces
+processInterfaces(configClass, sourceClass);
+
+// 处理实现接口上的带有@Bean的默认方法
+private void processInterfaces(ConfigurationClass configClass, SourceClass sourceClass) throws IOException {
+    for (SourceClass ifc : sourceClass.getInterfaces()) {
+        Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(ifc);
+        for (MethodMetadata methodMetadata : beanMethods) {
+            if (!methodMetadata.isAbstract()) {
+                // A default method or other concrete method on a Java 8+ interface...
+                configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
+            }
+        }
+        processInterfaces(configClass, ifc);
+    }
+}
+```
+##### 3.1.2.7 处理父类
+
+1. 将当前配置类的父类当做配置类返回到上层方法中，循环处理
+
+```java
+// Process superclass, if any
+if (sourceClass.getMetadata().hasSuperClass()) {
+    String superclass = sourceClass.getMetadata().getSuperClassName();
+    if (superclass != null && !superclass.startsWith("java") &&
+            !this.knownSuperclasses.containsKey(superclass)) {
+        this.knownSuperclasses.put(superclass, configClass);
+        // Superclass found, return its annotation metadata and recurse
+        // 这里将父类返回，是因为在上层方法中会把返回的类当做配置类循环处理
+        return sourceClass.getSuperClass();
+    }
+}
+```
+
+### 3.2 加载配置类相关BeanDefinition
+
+1. 创建读取器`ConfigurationClassBeanDefinitionReader`
+2. 加载配置类关联加载的`BeanDefinition`
+
+```java
+// Read the model and create bean definitions based on its content
+if (this.reader == null) {
+    this.reader = new ConfigurationClassBeanDefinitionReader(
+            registry, this.sourceExtractor, this.resourceLoader, this.environment,
+            this.importBeanNameGenerator, parser.getImportRegistry());
+}
+this.reader.loadBeanDefinitions(configClasses);
+```
+
+3. 判断是否过滤配置类的加载相关的`BeanDefinition`
+4. 如果当前配置类是通过其他配置类`import`，则在此处进行注册`BeanDefinition`
+5. 将配置类中标注`@Bean`的方法进行注册`BeanDefinition`
+6. 加载`@ImportResource`注解解析的`XML`配置文件导入的`BeanDefinition`
+7. 加载`@Import`注解导入的`ImportBeanDefinitionRegistrar`类，注入`BeanDefinition`
+```java
+public void loadBeanDefinitions(Set<ConfigurationClass> configurationModel) {
+    TrackedConditionEvaluator trackedConditionEvaluator = new TrackedConditionEvaluator();
+    for (ConfigurationClass configClass : configurationModel) {
+        loadBeanDefinitionsForConfigurationClass(configClass, trackedConditionEvaluator);
+    }
+}
+
+private void loadBeanDefinitionsForConfigurationClass(
+        ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
+    // 判断是否要过滤配置类
+    if (trackedConditionEvaluator.shouldSkip(configClass)) {
+        String beanName = configClass.getBeanName();
+        if (StringUtils.hasLength(beanName) && this.registry.containsBeanDefinition(beanName)) {
+            this.registry.removeBeanDefinition(beanName);
+        }
+        this.importRegistry.removeImportingClass(configClass.getMetadata().getClassName());
+        return;
+    }
+    // 如果当前配置类是通过其他配置类import，则在此处进行注册BeanDefinition
+    if (configClass.isImported()) {
+        registerBeanDefinitionForImportedConfigurationClass(configClass);
+    }
+    // 将配置类中标注@Bean的方法进行注册BeanDefinition
+    for (BeanMethod beanMethod : configClass.getBeanMethods()) {
+        loadBeanDefinitionsForBeanMethod(beanMethod);
+    }
+    // 加载@ImportResource注解解析的XML配置文件导入的BeanDefinition
+    loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
+    // 加载@Import注解导入的ImportBeanDefinitionRegistrar类，注入的BeanDefinition
+    loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 }
 ```
