@@ -186,7 +186,7 @@ public void parse(Set<BeanDefinitionHolder> configCandidates) {
 }
 ```
 
-4. 使用`DeferredImportSelectorGroupingHandler`对所有的`DeferredImportSelector`进行分组，并将所有分组后的`DeferredImportSelector`逐一处理。而我们的重中之重即`AutoConfigurationImportSelector.getImportGroup`返回的`AutoConfigurationGroup`，该类将调用`AutoConfigurationImportSelector.getAutoConfigurationEntry`来加载所有的`META-INF/spring.factories`文件中的`org.springframework.boot.autoconfigure.EnableAutoConfiguration`的`value`值，即我们需要的自动配置类(对于这里的处理，我们需要从更高的一个角度看待处理所有的`DeferredImportSelector`，而不是专注于`AutoConfigurationImportSelector`)
+4. 使用`DeferredImportSelectorGroupingHandler`对所有的`DeferredImportSelector`进行分组，并将所有分组后的`DeferredImportSelector`逐一处理。而我们的重中之重即`AutoConfigurationImportSelector.getImportGroup`返回的`AutoConfigurationGroup`，该类将调用`AutoConfigurationImportSelector.getAutoConfigurationEntry`来加载所有的`META-INF/spring.factories`文件中的`org.springframework.boot.autoconfigure.EnableAutoConfiguration`的`value`值，即我们需要的自动配置类（对于这里的处理，我们需要从更高的一个角度看待处理所有的`DeferredImportSelector`，而不是专注于`AutoConfigurationImportSelector`）
 ```java
 // DeferredImportSelectorHandler
 public void process() {
@@ -309,7 +309,62 @@ public Iterable<Entry> selectImports() {
 
 ## 三、`AutoConfigurationPackages.Registrar`
 
+AutoConfigurationPackages类型的作用：用于存储自动配置包以便后续引用（例如，由JPA实体扫描器引用）的类。关于此类及注解的更多作用暂时不明
 
+```java
+static class Registrar implements ImportBeanDefinitionRegistrar, DeterminableImports {
 
-## 四、四大皆空
+	@Override
+	public void registerBeanDefinitions(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
+		// 向容器中注入 BasePackages 的 BeanDefinition，并在ConstructorArgumentValues的下标0的位置，存储packageName
+		register(registry, new PackageImports(metadata).getPackageNames().toArray(new String[0]));
+	}
+
+	@Override
+	public Set<Object> determineImports(AnnotationMetadata metadata) {
+		return Collections.singleton(new PackageImports(metadata));
+	}
+
+}
+
+// PackageImports
+PackageImports(AnnotationMetadata metadata) {
+	// 获取注解@AutoConfigurationPackage的属性
+	AnnotationAttributes attributes = AnnotationAttributes
+			.fromMap(metadata.getAnnotationAttributes(AutoConfigurationPackage.class.getName(), false));
+	List<String> packageNames = new ArrayList<>();
+	// 获取basePackages的值
+	for (String basePackage : attributes.getStringArray("basePackages")) {
+		packageNames.add(basePackage);
+	}
+	// 获取basePackageClasses类型所在包的值
+	for (Class<?> basePackageClass : attributes.getClassArray("basePackageClasses")) {
+		packageNames.add(basePackageClass.getPackage().getName());
+	}
+	// 如果都为空，则取注解所在类的包的值
+	if (packageNames.isEmpty()) {
+		packageNames.add(ClassUtils.getPackageName(metadata.getClassName()));
+	}
+	this.packageNames = Collections.unmodifiableList(packageNames);
+}
+
+// AutoConfigurationPackages
+// 该方法的作用就是向容器中注入 BasePackages 的 BeanDefinition，并在ConstructorArgumentValues的下标0的位置，存储packageName
+public static void register(BeanDefinitionRegistry registry, String... packageNames) {
+	// 	private static final String BEAN = AutoConfigurationPackages.class.getName();
+	if (registry.containsBeanDefinition(BEAN)) {
+		BeanDefinition beanDefinition = registry.getBeanDefinition(BEAN);
+		ConstructorArgumentValues constructorArguments = beanDefinition.getConstructorArgumentValues();
+		constructorArguments.addIndexedArgumentValue(0, addBasePackages(constructorArguments, packageNames));
+	}
+	else {
+		GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
+		beanDefinition.setBeanClass(BasePackages.class);
+		beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0, packageNames);
+		beanDefinition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+		registry.registerBeanDefinition(BEAN, beanDefinition);
+	}
+}
+```
+
 

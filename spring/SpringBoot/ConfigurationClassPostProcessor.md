@@ -1302,3 +1302,130 @@ private void loadBeanDefinitionsForConfigurationClass(
     loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 }
 ```
+
+
+## 四、Configuration
+
+### 4.1 注解定义
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Component
+public @interface Configuration {
+
+	/**
+	 * Explicitly specify the name of the Spring bean definition associated with the
+	 * {@code @Configuration} class. If left unspecified (the common case), a bean
+	 * name will be automatically generated.
+	 * <p>The custom name applies only if the {@code @Configuration} class is picked
+	 * up via component scanning or supplied directly to an
+	 * {@link AnnotationConfigApplicationContext}. If the {@code @Configuration} class
+	 * is registered as a traditional XML bean definition, the name/id of the bean
+	 * element will take precedence.
+	 * @return the explicit component name, if any (or empty String otherwise)
+	 * @see AnnotationBeanNameGenerator
+	 */
+	@AliasFor(annotation = Component.class)
+	String value() default "";
+
+	/**
+	 * Specify whether {@code @Bean} methods should get proxied in order to enforce
+	 * bean lifecycle behavior, e.g. to return shared singleton bean instances even
+	 * in case of direct {@code @Bean} method calls in user code. This feature
+	 * requires method interception, implemented through a runtime-generated CGLIB
+	 * subclass which comes with limitations such as the configuration class and
+	 * its methods not being allowed to declare {@code final}.
+	 * <p>The default is {@code true}, allowing for 'inter-bean references' via direct
+	 * method calls within the configuration class as well as for external calls to
+	 * this configuration's {@code @Bean} methods, e.g. from another configuration class.
+	 * If this is not needed since each of this particular configuration's {@code @Bean}
+	 * methods is self-contained and designed as a plain factory method for container use,
+	 * switch this flag to {@code false} in order to avoid CGLIB subclass processing.
+	 * <p>Turning off bean method interception effectively processes {@code @Bean}
+	 * methods individually like when declared on non-{@code @Configuration} classes,
+	 * a.k.a. "@Bean Lite Mode" (see {@link Bean @Bean's javadoc}). It is therefore
+	 * behaviorally equivalent to removing the {@code @Configuration} stereotype.
+	 * @since 5.2
+	 */
+	boolean proxyBeanMethods() default true;
+
+}
+
+```
+
+`proxyBeanMethods` 是 Spring 中的一个配置项，通常出现在 `@Configuration` 注解的类中。它用来控制 Spring 容器是否为标记为 `@Configuration` 的类中的 bean 方法创建代理。
+
+### 4.2 背景
+
+在 Spring 中，`@Configuration` 注解标记的类用于定义 Java 配置，这些类中的方法通常返回一个或多个 Bean。为了保证这些 Bean 在整个容器中的唯一性和懒加载，Spring 需要对这些方法进行一些特殊处理。具体来说，Spring 会使用 CGLIB 动态代理来确保配置类的每个方法调用都能从 Spring 容器中获取到单例 Bean，而不是每次调用时返回一个新的实例。
+
+### 4.3 `proxyBeanMethods`
+
+`proxyBeanMethods` 是 `@Configuration` 注解的一个属性，默认值是 `true`。它的作用是决定是否在配置类中的 bean 方法上启用代理机制。
+
+**`proxyBeanMethods = true`（默认值）**
+
+当 `proxyBeanMethods = true` 时，Spring 会为 `@Configuration` 类中的方法生成代理。这样做的目的是确保即使在 `@Configuration` 类内部调用另一个方法时，仍然是通过代理获取到 Spring 容器中的 Bean，而不是直接调用方法生成新的实例。
+
+- **保证单例**：即使在同一个 `@Configuration` 类中调用返回 Bean 的方法，Spring 也会通过代理来获取容器中的单例 Bean，而不是每次都创建一个新的实例。
+- **性能开销**：由于使用了代理机制，这会增加一些性能开销。
+
+**示例**：
+
+```java
+@Configuration(proxyBeanMethods = true)
+public class AppConfig {
+
+    @Bean
+    public MyBean myBean() {
+        return new MyBean();
+    }
+
+    @Bean
+    public MyService myService() {
+        return new MyService(myBean());  // 这里调用了另一个 bean 方法
+    }
+}
+```
+
+在上面的代码中，`myService()` 方法调用了 `myBean()` 方法。由于 `proxyBeanMethods = true`，即使它是在同一个配置类中，Spring 会通过代理机制确保 `myBean()` 返回的是容器中的单例实例，而不是一个新的对象。
+
+**`proxyBeanMethods = false`**
+
+当 `proxyBeanMethods = false` 时，Spring 不会为 `@Configuration` 类中的方法生成代理。这样做的效果是，`@Configuration` 类中的方法会按照普通的 Java 方法执行，而不做特殊处理。
+
+- **不会确保单例**：如果你在配置类内部调用其他方法返回的 Bean，可能会出现不同实例的情况，因为 Spring 不会为这些方法生成代理。
+- **性能优化**：由于不生成代理，性能会更高，适用于那些不依赖于 Spring 容器管理单例 Bean的场景。
+
+**示例**：
+
+```java
+@Configuration(proxyBeanMethods = false)
+public class AppConfig {
+
+    @Bean
+    public MyBean myBean() {
+        return new MyBean();
+    }
+
+    @Bean
+    public MyService myService() {
+        return new MyService(myBean());  // 这里调用了另一个 bean 方法
+    }
+}
+```
+
+在这个例子中，`myService()` 方法调用了 `myBean()` 方法。如果 `proxyBeanMethods = false`，Spring 不会通过代理来确保 `myBean()` 返回容器中的单例 Bean。`myBean()` 方法会直接返回一个新的实例，而不是通过容器获取一个共享的实例。
+
+### 4.4 使用条件
+
+- **性能考虑**：如果你对性能有较高要求，且确保配置类方法中的依赖关系不需要容器单例管理，可以使用 `proxyBeanMethods = false`。这会减少代理的开销。
+- **无状态配置类**：如果 `@Configuration` 类只包含一些简单的 Bean 定义，而且方法间没有复杂的依赖关系，可以考虑设置为 `false`，以避免不必要的代理。
+
+### 4.5 总结
+
+- `proxyBeanMethods = true`（默认值）：为配置类的方法生成代理，确保每个方法调用返回的是容器中的单例 Bean。
+- `proxyBeanMethods = false`：不为配置类的方法生成代理，方法调用会直接返回结果，可能会导致创建多个实例。
+
+一般情况下，如果没有特别的性能要求或特殊场景，`proxyBeanMethods = true` 是推荐的做法，因为它能确保 Spring 配置类中的依赖注入和单例模式能够正常工作。
