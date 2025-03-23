@@ -33,7 +33,7 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
         if (resolvedAutowireMode == AUTOWIRE_BY_NAME) {
             autowireByName(beanName, mbd, bw, newPvs);
         }
-        // 根据类型进行属性注入，其实这个根据类型注入，有点鸡肋，因为属性的注入必然是类型是有关系的，所以在这里面的DependencyDescriptor实例化时，是AutowireByTypeDependencyDescriptor，该类重载了getDependencyName方法，返回null，后续在注入时，如果返回类型有多个那么会进行判断determineAutowireCandidate，此时就不会根据name来选择注入的对象
+        // 根据类型进行属性注入，因为属性的注入必然是类型是有关系的，所以在这里面的DependencyDescriptor实例化时，是AutowireByTypeDependencyDescriptor，该类重载了getDependencyName方法，返回null，后续在注入时，如果返回类型有多个那么会进行判断determineAutowireCandidate，此时就不会根据name来选择注入的对象
         if (resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
             autowireByType(beanName, mbd, bw, newPvs);
         }
