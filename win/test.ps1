@@ -157,6 +157,8 @@ Set-Content $temporaryFile "hello world"; # 写入文件内容
 Add-Content $temporaryFile "hello world"; # 追加文件内容
 Remove-Item $temporaryFile; # 删除文件
 Copy-Item $temporaryFile "C:\Users\zhangsan\Desktop\test.txt"; # 复制文件
+Move-Item $temporaryFile "C:\Users\zhangsan\Desktop\test.txt"; # 移动文件
+Rename-Item $temporaryFile "test.txt"; # 重命名文件
 
 # 创建文件/文件夹
 
@@ -209,3 +211,11 @@ Get-Process | Where-Object { $_.Name -eq "java" } | Stop-Process -Force -PassThr
 Stop-Process -Id $pid -Force # 杀掉当前进程
 Get-Process -Id $pid # 获取当前进程对象
 Get-Process -Id $pid | Stop-Process -Force # 杀掉当前进程并返回进程对象
+
+#执行其他脚本文件
+$scriptPath = "C:\Users\zhangsan\Desktop\test.ps1";
+. $scriptPath # 执行脚本文件
+$scriptPath = "C:\Users\zhangsan\Desktop\test.bat";
+Start-Process -FilePath $scriptPath # 执行bat文件
+$scriptPath = "C:\Users\zhangsan\Desktop\test.cmd";
+Start-Process -FilePath $scriptPath # 执行cmd文件
