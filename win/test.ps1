@@ -1,7 +1,7 @@
 # 注释一下
 # Set-ExecutionPolicy:Restricted（受限）、AllSigned（所有脚本必须有签名）、RemoteSigned（本地脚本不受签名限制，远程脚本必须有签名）或Bypass（不受限制）
 $text = "haha";
-$up = $text.Substring(0,1).ToUpper() + $text.Substring(1);
+$up = $text.Substring(0, 1).ToUpper() + $text.Substring(1);
 Write-Output $up;
 
 # 类型
@@ -12,7 +12,7 @@ $string = "hello world"; # 字符串
 $char = 'a'; # 字符
 $null = $null; # 空值
 $object = New-Object -TypeName PSObject -Property @{ Name = "zhangsan"; Age = 18; }; # 对象
-$array = @(1,2,3,4,5); # 数组
+$array = @(1, 2, 3, 4, 5); # 数组
 $hashtable = @{ Name = "zhangsan"; Age = 18; }; # 哈希表
 $datetime = Get-Date; # 日期时间
 $regex = [regex]::new("^[a-zA-Z0-9]+$"); # 正则表达式
@@ -39,8 +39,8 @@ Write-Host $num -like "1"; # 模糊匹配
 Write-Host $num -notlike "1"; # 不模糊匹配
 Write-Host $num -match "1"; # 正则匹配
 Write-Host $num -notmatch "1"; # 不正则匹配
-Write-Host $num -in 1,2,3; # 在集合中
-Write-Host $num -notin 1,2,3; # 不在集合中
+Write-Host $num -in 1, 2, 3; # 在集合中
+Write-Host $num -notin 1, 2, 3; # 不在集合中
 Write-Host $num -is [int]; # 是类型
 Write-Host $num -isnot [int]; # 不是类型
 Write-Host $num -and $num -eq 1; # 与
@@ -81,7 +81,7 @@ Write-Host 1 --= 2; # 自减等于
 Math::Round(1.5);
 
 # 数组
-$array = (1,2,3,4,5);
+$array = (1, 2, 3, 4, 5);
 foreach ($currItem in $array) {
     <# $currItem is the current item #>
     Write-Output $currItem;
@@ -90,7 +90,7 @@ foreach ($currItem in $array) {
 # 哈希表
 $hashTable = @{
     "name" = "zhangsan";
-    "age" = 18;
+    "age"  = 18;
 }
 $hashTable["name"] = "lisi";
 Write-Output $hashTable["name"];
@@ -115,9 +115,11 @@ for ($i = 0; $i -lt 10; $i++) {
 # try-catch-finally
 try {
     $a = 1 / 0;
-} catch {
+}
+catch {
     Write-Output "catch: $_";
-} finally {
+}
+finally {
     Write-Output "finally";
 }
 
@@ -146,7 +148,8 @@ $path = "C:\Users\zhangsan\Desktop\test.txt";
 $exists = Test-Path $path;
 if ($exists) {
     Write-Output "文件存在";
-} else {
+}
+else {
     Write-Output "文件不存在";
 }
 
@@ -161,7 +164,8 @@ Move-Item $temporaryFile "C:\Users\zhangsan\Desktop\test.txt"; # 移动文件
 Rename-Item $temporaryFile "test.txt"; # 重命名文件
 
 # 创建文件/文件夹
-
+New-Item -Path "C:\Path\To\Your\Folder" -ItemType Directory
+New-Item -Path "C:\Path\To\Your\File.txt" -ItemType File
 
 #json
 $json = '{"name":"zhangsan","age":18}';
@@ -174,7 +178,7 @@ Write-Output $person | ConvertTo-Json; # 转换为json字符串
 $uri = "https://api.github.com/users/octocat";
 $response = Invoke-RestMethod -Uri $uri -Method Get;
 $body = @{
-    account = "test";
+    account  = "test";
     password = "test"
 };
 $response = Invoke-RestMethod -Uri $uri -Method Post -Body $body -ContentType "application/json";
@@ -219,3 +223,12 @@ $scriptPath = "C:\Users\zhangsan\Desktop\test.bat";
 Start-Process -FilePath $scriptPath # 执行bat文件
 $scriptPath = "C:\Users\zhangsan\Desktop\test.cmd";
 Start-Process -FilePath $scriptPath # 执行cmd文件
+
+#获取进程详细信息
+Get-CimInstance -ClassName Win32_Process | Where-Object { $_.Name -eq "java.exe" } | Select-Object -Property Name, ProcessId, CommandLine # 获取进程详细信息
+Get-CimInstance -ClassName Win32_Process | Where-Object { $_.CommandLine -like "*nacos*" } | Select-Object -Property Name, ProcessId, CommandLine # 获取进程详细信息
+#关闭进程
+Get-CimInstance -ClassName Win32_Process | Where-Object { $_.CommandLine -like "*nacos*" } | Foreach-Object {
+    Stop-Process -Id $_.ProcessId -Force # 杀掉进程
+}
+
