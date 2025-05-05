@@ -1,6 +1,6 @@
 # ClassPathXmlApplicationContext 源码解析
 
-![title](../../../image/ClassPathXmlApplicationContext.png)
+![title](../../../../image/ClassPathXmlApplicationContext.png)
 
 ```java
 public ClassPathXmlApplicationContext(
