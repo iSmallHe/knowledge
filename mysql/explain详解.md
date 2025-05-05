@@ -1,5 +1,5 @@
 # explain详解
-![explain](../image/explain.jpg)
+![explain](../image/explain.png)
 
 ## 1  id
 select查询的序列号，包含一组数字，表示查询中执行select子句或操作表的顺序 
