@@ -32,10 +32,10 @@ db.collection.find({});
 |操作|格式|示例|
 |---|---|---|
 |等于|key:value|db.col.find({key:value})|
-|大于|key:{$gt:value}|db.col.find{key:{$gt:value}}|
-|大于等于|key:{$gte:value}|db.col.find{key:{$gte:value}}|
-|小于|key:{$lt:value}|db.col.find{key:{$lt:value}}|
-|小于等于|key:{$lte:value}|db.col.find{key:{$lte:value}}|
+|大于|key:{$gt:value}|db.col.find({key:{$gt:value}})|
+|大于等于|key:{$gte:value}|db.col.find({key:{$gte:value}})|
+|小于|key:{$lt:value}|db.col.find({key:{$lt:value}})|
+|小于等于|key:{$lte:value}|db.col.find({key:{$lte:value}})|
 
 #### AND
 ```
@@ -43,7 +43,7 @@ db.col.find({key1:value1, key2:value2}).pretty();
 ```
 #### OR
 ```
-db.col.find({$or:[{key1:value1},{key2:value2}]);
+db.col.find({$or:[{key1:value1},{key2:value2}]});
 ```
 
 #### limit-skip
